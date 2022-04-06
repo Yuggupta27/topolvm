@@ -8,6 +8,7 @@ SKIP_NODE_FINALIZE ?= false
 MINIKUBE_VERSION := v1.25.1
 CERT_MANAGER_VERSION := v1.7.0
 KUSTOMIZE_VERSION := v4.4.1
+SNAPSHOT_CONTROLLER_VERSION := 4.2
 
 BINDIR := $(shell pwd)/bin
 SUDO := sudo
@@ -164,6 +165,11 @@ create-cluster: topolvm.img
 	$(MAKE) launch-kind
 	$(KIND) load image-archive --name=$(KIND_CLUSTER_NAME) $<
 	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.crds.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-$(SNAPSHOT_CONTROLLER_VERSION)/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-$(SNAPSHOT_CONTROLLER_VERSION)/client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-$(SNAPSHOT_CONTROLLER_VERSION)/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-$(SNAPSHOT_CONTROLLER_VERSION)/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
+    $(KUBECTL) apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-$(SNAPSHOT_CONTROLLER_VERSION)/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
 	$(KUBECTL) create namespace topolvm-system
 	$(KUBECTL) label namespace topolvm-system topolvm.cybozu.com/webhook=ignore
 	$(KUBECTL) label namespace kube-system topolvm.cybozu.com/webhook=ignore
@@ -267,7 +273,7 @@ ifneq ($(STORAGE_CAPACITY),true)
 	$(SUDO) manifests/kube-scheduler/patch.sh
 endif
 
-.PHONY: daemonset-lvmd/test
+.PHONY: daemonset-lvmd/test snapshot-controller
 daemonset-lvmd/test: topolvm.img
 	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.crds.yaml
 	$(KUBECTL) create namespace topolvm-system
@@ -282,3 +288,8 @@ daemonset-lvmd/test: topolvm.img
 
 .PHONY: daemonset-lvmd/clean
 daemonset-lvmd/clean: daemonset-lvmd/delete-minikube daemonset-lvmd/remove-vg
+
+snapshot-controller:
+	$(KUBECTL) apply -f testdata/snapshot/deploy/crd.yaml
+	$(KUBECTL) apply -f testdata/snapshot/deploy/rbac.yaml
+	$(KUBECTL) apply -f testdata/snapshot/deploy/controller.yaml

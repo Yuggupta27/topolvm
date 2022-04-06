@@ -561,16 +561,89 @@ func (l *LogicalVolume) Snapshot(name string, cowSize uint64) (*LogicalVolume, e
 		return snapLV, nil
 	}
 
-	var lvcreateArgs []string
-	if _, err := os.Stat("/run/systemd/system"); err != nil {
-		lvcreateArgs = []string{"-s", "-n", name, l.fullname}
-	} else {
-		lvcreateArgs = []string{"-s", "-k", "n", "-n", name, l.fullname}
-	}
+	// lvcreate --type thin -n thinX -V 1T --thinpool vg/poolA
+
+	// var lvcreateArgs []string
+	// if _, err := os.Stat("/run/systemd/system"); err != nil {
+	// 	lvcreateArgs = []string{"-s", "-n", name, l.fullname}
+	// } else {
+	// 	lvcreateArgs = []string{"-s", "-k", "n", "-n", name, l.fullname}
+	// }
+	lvcreateArgs := []string{"-s", "-k", "n", "-n", name, l.path}
 	if err := CallLVM("lvcreate", lvcreateArgs...); err != nil {
 		return nil, err
 	}
 	return l.vg.FindVolume(name)
+}
+
+// func (l *LogicalVolume) Activate(access string) error {
+// 	if access == "" {
+// 		access = "r"
+// 	}
+// 	return CallLVM("lvchange", "-a", access, l.fullname)
+// }
+
+// // Deactivate deactivates the logical volume.
+// func (l *LogicalVolume) Deactivate() error {
+// 	return CallLVM("lvchange", "-a", "n", l.fullname)
+// }
+
+// // Resize resizes the logical volume.
+// func (l *LogicalVolume) Resize(size uint64) error {
+// 	if l.pool != nil {
+// 		return fmt.Errorf("cannot resize thin volume")
+// 	}
+// 	return CallLVM("lvextend", "-L", fmt.Sprintf("%vg", size>>30), l.fullname)
+// }
+
+// // Remove removes the logical volume.
+// func (l *LogicalVolume) Remove() error {
+// 	return CallLVM("lvremove", "-f", l.fullname)
+// }
+
+// // SnapshotRemove removes the snapshot.
+// func (l *LogicalVolume) SnapshotRemove() error {
+// 	return CallLVM("lvremove", "-f", l.fullname)
+// }
+
+// // SnapshotRemoveAll removes all snapshots.
+// func (l *LogicalVolume) SnapshotRemoveAll() error {
+// 	return CallLVM("lvremove", "-f", l.fullname+"_*")
+// }
+
+// // SnapshotList returns a list of snapshots.
+// func (l *LogicalVolume) SnapshotList() ([]*LogicalVolume, error) {
+// 	snapshots, err := l.vg.SnapshotList()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	ret := []*LogicalVolume{}
+// 	for _, snapshot := range snapshots {
+// 		if strings.HasPrefix(snapshot.name, l.name+"_") {
+// 			ret = append(ret, snapshot)
+// 		}
+// 	}
+// 	return ret, nil
+// }
+
+// // SnapshotListAll returns a list of all snapshots.
+// func (l *LogicalVolume) SnapshotListAll()
+
+// Activate activates the logical volume for desired access.
+func (l *LogicalVolume) Activate(access string) error {
+	var lvchangeArgs []string
+	switch access {
+	case "ro":
+		lvchangeArgs = []string{"-p", "r", l.path}
+	case "rw":
+		lvchangeArgs = []string{"-a", "y", l.path}
+	default:
+		return fmt.Errorf("unknown access: %s for LogicalVolume %s", access, l.fullname)
+	}
+	if err := CallLVM("lvchange", lvchangeArgs...); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Resize this volume.

@@ -3,8 +3,10 @@ EXTERNAL_PROVISIONER_VERSION = 3.1.0
 EXTERNAL_RESIZER_VERSION = 1.4.0
 NODE_DRIVER_REGISTRAR_VERSION = 2.4.0
 LIVENESSPROBE_VERSION = 2.6.0
+EXTERNAL_SNAPSHOTTER_VERSION = 4.0.0
 CSI_SIDECARS = \
 	external-provisioner \
+	external-snapshotter \
 	external-resizer \
 	node-driver-registrar \
 	livenessprobe
@@ -15,6 +17,7 @@ SRC_ROOT = $(GOPATH)/src/github.com/kubernetes-csi
 EXTERNAL_PROVISIONER_SRC  = $(SRC_ROOT)/external-provisioner
 NODE_DRIVER_REGISTRAR_SRC = $(SRC_ROOT)/node-driver-registrar
 EXTERNAL_RESIZER_SRC      = $(SRC_ROOT)/external-resizer
+EXTERNAL_SNAPSHOTTER_SRC = $(SRC_ROOT)/external-snapshotter
 LIVENESSPROBE_SRC         = $(SRC_ROOT)/livenessprobe
 
 OUTPUT_DIR ?= .
@@ -28,6 +31,14 @@ external-provisioner:
         tar zxf - --strip-components 1 -C $(EXTERNAL_PROVISIONER_SRC)
 	make -C $(EXTERNAL_PROVISIONER_SRC)
 	cp -f $(EXTERNAL_PROVISIONER_SRC)/bin/csi-provisioner $(OUTPUT_DIR)/
+
+external-snapshotter:
+	rm -rf $(EXTERNAL_SNAPSHOTTER_SRC)
+	mkdir -p $(EXTERNAL_SNAPSHOTTER_SRC)
+	curl -sSLf https://github.com/kubernetes-csi/external-snapshotter/archive/v$(EXTERNAL_SNAPSHOTTER_VERSION).tar.gz | \
+        tar zxf - --strip-components 1 -C $(EXTERNAL_SNAPSHOTTER_SRC)
+	make -C $(EXTERNAL_SNAPSHOTTER_SRC)
+	cp -f $(EXTERNAL_SNAPSHOTTER_SRC)/bin/csi-snapshotter $(OUTPUT_DIR)/
 
 external-resizer:
 	rm -rf $(EXTERNAL_RESIZER_SRC)
