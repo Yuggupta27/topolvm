@@ -9,12 +9,14 @@ import (
 
 	"github.com/topolvm/topolvm"
 	topolvmv1 "github.com/topolvm/topolvm/api/v1"
+	"github.com/topolvm/topolvm/csi"
 	"github.com/topolvm/topolvm/getter"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -108,27 +110,77 @@ func NewLogicalVolumeService(mgr manager.Manager) (*LogicalVolumeService, error)
 }
 
 // CreateVolume creates volume
-func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name string, requestGb int64) (string, error) {
-	logger.Info("k8s.CreateVolume called", "name", name, "node", node, "size_gb", requestGb)
+func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name, parentID string, requestGb int64, sourceVol *topolvmv1.LogicalVolume) (string, error) {
+	logger.Info("k8s.CreateVolume called", "name", name, "node", node, "size_gb", requestGb, "parentID", parentID)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	var lv *topolvmv1.LogicalVolume
+	// make changes in the CR for restore and clone
+	if parentID == "" {
+		logger.Info("NEW YUG volume no parent")
+		lv = &topolvmv1.LogicalVolume{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "LogicalVolume",
+				APIVersion: "topolvm.cybozu.com/v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Spec: topolvmv1.LogicalVolumeSpec{
+				Name:        name,
+				NodeName:    node,
+				DeviceClass: dc,
+				Size:        *resource.NewQuantity(requestGb<<30, resource.BinarySI),
+			},
+		}
 
-	lv := &topolvmv1.LogicalVolume{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "LogicalVolume",
-			APIVersion: "topolvm.cybozu.com/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: topolvmv1.LogicalVolumeSpec{
-			Name:        name,
-			NodeName:    node,
-			DeviceClass: dc,
-			Size:        *resource.NewQuantity(requestGb<<30, resource.BinarySI),
-		},
+	} else {
+		logger.Info("NEW YUG volume HAS parent")
+		parentLV := new(topolvmv1.LogicalVolume)
+		err := s.getter.Get(ctx, client.ObjectKey{Name: name}, parentLV)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return "", ErrVolumeNotFound
+			} else {
+				return "", fmt.Errorf("failed to fetch source volume %s: %v", parentID, err)
+			}
+		}
+
+		lv = &topolvmv1.LogicalVolume{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "LogicalVolume",
+				APIVersion: "topolvm.cybozu.com/v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Spec: topolvmv1.LogicalVolumeSpec{
+				Name:        name,
+				NodeName:    sourceVol.Spec.NodeName,
+				DeviceClass: sourceVol.Spec.DeviceClass,
+				Snapshot: topolvmv1.SnapshotSpec{
+					// YUG TODO: update this to pick up parents type.
+					// If parent is thin, this should be thin.
+					Type:       "thin",
+					DataSource: sourceVol.Status.VolumeID,
+					AccessType: "rw",
+				},
+			},
+		}
 	}
 
+	// verify if source volume exists.
+	if parentID != "" {
+		parentLV := new(topolvmv1.LogicalVolume)
+		err := s.getter.Get(ctx, client.ObjectKey{Name: name}, parentLV)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return "", ErrVolumeNotFound
+			} else {
+				return "", fmt.Errorf("failed to fetch source volume %s: %v", parentID, err)
+			}
+		}
+	}
 	existingLV := new(topolvmv1.LogicalVolume)
 	err := s.getter.Get(ctx, client.ObjectKey{Name: name}, existingLV)
 	if err != nil {
@@ -150,8 +202,10 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name 
 		}
 		// compatible LV was found
 	}
-
+	logger.Info("NEW YUG im going in loop")
+	retry := 0
 	for {
+		logger.Info("NEW YUG im iterrating")
 		logger.Info("waiting for setting 'status.volumeID'", "name", name)
 		select {
 		case <-ctx.Done():
@@ -176,6 +230,10 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name 
 				logger.Error(err, "failed to delete LogicalVolume")
 			}
 			return "", status.Error(newLV.Status.Code, newLV.Status.Message)
+		}
+		retry++
+		if parentID != "" && retry > 600 {
+			return "", status.Error(codes.DeadlineExceeded, "waiting volume is ok")
 		}
 	}
 }
@@ -219,6 +277,152 @@ func (s *LogicalVolumeService) DeleteVolume(ctx context.Context, volumeID string
 			return err
 		}
 	}
+}
+
+// CreateSnapshot creates a snapshot of existing volume.
+func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, sourceVol *topolvmv1.LogicalVolume, sourceVolID, sname, snapType, accessType string) (string, error) {
+	logger.Info("CreateSnapshot called", "name", sname)
+
+	snapshotLV := &topolvmv1.LogicalVolume{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "LogicalVolume",
+			APIVersion: "topolvm.cybozu.com/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: sname,
+		},
+		Spec: topolvmv1.LogicalVolumeSpec{
+			Name:        sname,
+			NodeName:    sourceVol.Spec.NodeName,
+			DeviceClass: sourceVol.Spec.DeviceClass,
+			Snapshot: topolvmv1.SnapshotSpec{
+				Type:       snapType,
+				DataSource: sourceVol.Status.VolumeID,
+				AccessType: accessType,
+			},
+		},
+	}
+
+	existingSnapshot := &topolvmv1.LogicalVolume{}
+	err := s.getter.Get(ctx, types.NamespacedName{Name: sname}, existingSnapshot)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return "", err
+		}
+		err := s.writer.Create(ctx, snapshotLV)
+		if err != nil {
+			return "", err
+		}
+		logger.Info("created LogicalVolume CRD", "name", sname)
+	} else {
+		//!(existingSnapshot.Annotations != nil &&
+		//	existingSnapshot.Annotations[topolvm.LVSnapshotSourceVol] != sourceVolume.Status.VolumeID)
+		if !existingSnapshot.IsCompatibleWith(snapshotLV) || sourceVolID != sourceVol.Status.VolumeID {
+			return "", status.Error(codes.AlreadyExists, "Incompatible LogicalVolume already exists")
+		}
+	}
+
+	for {
+		logger.Info("waiting for setting 'status.volumeID'", "name", sname)
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		var newLV topolvmv1.LogicalVolume
+		err := s.getter.Get(ctx, client.ObjectKey{Name: sname}, &newLV)
+		if err != nil {
+			logger.Error(err, "failed to get LogicalVolume", "name", sname)
+			return "", err
+		}
+		if newLV.Status.VolumeID != "" {
+			logger.Info("end k8s.LogicalVolume", "volume_id", newLV.Status.VolumeID)
+			return newLV.Status.VolumeID, nil
+		}
+		if newLV.Status.Code != codes.OK {
+			err := s.writer.Delete(ctx, &newLV)
+			if err != nil {
+				// log this error but do not return this error, because newLV.Status.Message is more important
+				logger.Error(err, "failed to delete LogicalVolume")
+			}
+			return "", status.Error(newLV.Status.Code, newLV.Status.Message)
+		}
+	}
+}
+
+// func (s *LogicalVolumeService) DeleteSnapshot(ctx context.Context, snapshotID string) error {
+// 	logger.Info("k8s.DeleteVolume called", "volumeID", snapshotID)
+
+// 	lv, err := s.GetVolume(ctx, snapshotID)
+// 	if err != nil {
+// 		if err == ErrVolumeNotFound {
+// 			logger.Info("volume is not found", "volume_id", snapshotID)
+// 			return nil
+// 		}
+// 		return err
+// 	}
+
+// 	err = s.writer.Delete(ctx, lv)
+// 	if err != nil {
+// 		if apierrors.IsNotFound(err) {
+// 			return nil
+// 		}
+// 		return err
+// 	}
+
+// 	// wait until delete the target volume
+// 	for {
+// 		logger.Info("waiting for delete LogicalVolume", "name", lv.Name)
+// 		select {
+// 		case <-ctx.Done():
+// 			return ctx.Err()
+// 		case <-time.After(100 * time.Millisecond):
+// 		}
+
+// 		err := s.getter.Get(ctx, client.ObjectKey{Name: lv.Name}, new(topolvmv1.LogicalVolume))
+// 		if err != nil {
+// 			if apierrors.IsNotFound(err) {
+// 				return nil
+// 			}
+// 			logger.Error(err, "failed to get LogicalVolume", "name", lv.Name)
+// 			return err
+// 		}
+// 	}
+// }
+
+func (s *LogicalVolumeService) ValidateContentSource(ctx context.Context, req *csi.CreateVolumeRequest) (*topolvmv1.LogicalVolume, string, error) {
+	volumeSource := req.VolumeContentSource
+
+	if volumeSource == nil {
+		return nil, "", nil
+	}
+
+	switch volumeSource.Type.(type) {
+	case *csi.VolumeContentSource_Snapshot:
+		snapshotID := req.VolumeContentSource.GetSnapshot().GetSnapshotId()
+		if snapshotID == "" {
+			return nil, "", status.Error(codes.NotFound, "Snapshot ID cannot be empty")
+		}
+		snapshotVol, err := s.GetVolume(ctx, snapshotID)
+		if err != nil {
+			return nil, "", status.Error(codes.NotFound, "failed to find source volume")
+		}
+		return snapshotVol, snapshotID, nil
+
+	case *csi.VolumeContentSource_Volume:
+		volumeID := req.VolumeContentSource.GetVolume().GetVolumeId()
+		if volumeID == "" {
+			return nil, "", status.Error(codes.NotFound, "Volume ID cannot be empty")
+		}
+		logicalVol, err := s.GetVolume(ctx, volumeID)
+		if err != nil {
+			return nil, "", status.Error(codes.NotFound, "failed to find source volume")
+		}
+		return logicalVol, volumeID, nil
+	}
+
+	return nil, "", status.Errorf(codes.InvalidArgument, "not a proper volume source %v", volumeSource)
 }
 
 // ExpandVolume expands volume

@@ -8,6 +8,7 @@ SKIP_NODE_FINALIZE ?= false
 MINIKUBE_VERSION := v1.25.1
 CERT_MANAGER_VERSION := v1.7.0
 KUSTOMIZE_VERSION := v4.4.1
+SNAPSHOT_CONTROLLER_VERSION := 4.2
 
 BINDIR := $(shell pwd)/bin
 SUDO := sudo
@@ -271,7 +272,7 @@ ifneq ($(STORAGE_CAPACITY),true)
 	$(SUDO) manifests/kube-scheduler/patch.sh
 endif
 
-.PHONY: daemonset-lvmd/test
+.PHONY: daemonset-lvmd/test snapshot-controller
 daemonset-lvmd/test: topolvm.img
 	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.crds.yaml
 	$(MAKE) prepare-namespace
@@ -284,3 +285,8 @@ daemonset-lvmd/test: topolvm.img
 
 .PHONY: daemonset-lvmd/clean
 daemonset-lvmd/clean: daemonset-lvmd/delete-minikube daemonset-lvmd/remove-vg
+
+snapshot-controller:
+	$(KUBECTL) apply -f testdata/snapshot/deploy/crd.yaml
+	$(KUBECTL) apply -f testdata/snapshot/deploy/rbac.yaml
+	$(KUBECTL) apply -f testdata/snapshot/deploy/controller.yaml

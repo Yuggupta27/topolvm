@@ -40,6 +40,29 @@ message RemoveLVRequest {
     string device_class = 2;
 }
 
+// TODO YUG : Not finalized yet.
+message CreateLVSnapshotRequest {
+    string name = 1;              // The logical volume name.
+    repeated string tags = 2; // Tags to add to the volume during creation
+    string device_class = 3;
+    string sourcevolume = 4;      // Source lv of snap
+    uint64 size_gb = 5;           // Volume size in GiB.
+    string access_type = 6;       // Access type of snapshot
+}
+
+message CreateLVSnapshotResponse {
+    LogicalVolume snap = 1;  // Information of the created snap lv.
+}
+
+message DeleteLVSnapshotRequest {
+    string name = 1;       // The logical volume name.
+    string device_class = 2;
+}
+
+message DeleteLVSnapshotResponse {
+// Intentionally empty.
+}
+
 // Represents the input for ResizeLV.
 //
 // The volume must already exist.
@@ -97,6 +120,8 @@ service LVService {
     rpc RemoveLV(RemoveLVRequest) returns (Empty);
     // Resize a logical volume.
     rpc ResizeLV(ResizeLVRequest) returns (Empty);
+    rpc CreateLVSnapshot(CreateLVSnapshotRequest) returns (CreateLVSnapshotResponse);
+    rpc DeleteLVSnapshot(DeleteLVSnapshotRequest) returns (DeleteLVSnapshotResponse);
 }
 
 // Service to retrieve information of the volume group.

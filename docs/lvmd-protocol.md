@@ -6,6 +6,10 @@
 - [lvmd/proto/lvmd.proto](#lvmd/proto/lvmd.proto)
     - [CreateLVRequest](#proto.CreateLVRequest)
     - [CreateLVResponse](#proto.CreateLVResponse)
+    - [CreateLVSnapshotRequest](#proto.CreateLVSnapshotRequest)
+    - [CreateLVSnapshotResponse](#proto.CreateLVSnapshotResponse)
+    - [DeleteLVSnapshotRequest](#proto.DeleteLVSnapshotRequest)
+    - [DeleteLVSnapshotResponse](#proto.DeleteLVSnapshotResponse)
     - [Empty](#proto.Empty)
     - [GetFreeBytesRequest](#proto.GetFreeBytesRequest)
     - [GetFreeBytesResponse](#proto.GetFreeBytesResponse)
@@ -63,6 +67,67 @@ Represents the response of CreateLV.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | volume | [LogicalVolume](#proto.LogicalVolume) |  | Information of the created volume. |
+
+
+
+
+
+
+<a name="proto.CreateLVSnapshotRequest"></a>
+
+### CreateLVSnapshotRequest
+TODO YUG : Not finalized yet.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | The logical volume name. |
+| tags | [string](#string) | repeated | Tags to add to the volume during creation |
+| device_class | [string](#string) |  |  |
+| sourcevolume | [string](#string) |  | Source lv of snap |
+| size_gb | [uint64](#uint64) |  | Volume size in GiB. |
+| access_type | [string](#string) |  | Access type of snapshot |
+
+
+
+
+
+
+<a name="proto.CreateLVSnapshotResponse"></a>
+
+### CreateLVSnapshotResponse
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| snap | [LogicalVolume](#proto.LogicalVolume) |  | Information of the created snap lv. |
+
+
+
+
+
+
+<a name="proto.DeleteLVSnapshotRequest"></a>
+
+### DeleteLVSnapshotRequest
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | The logical volume name. |
+| device_class | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="proto.DeleteLVSnapshotResponse"></a>
+
+### DeleteLVSnapshotResponse
+Intentionally empty.
 
 
 
@@ -261,6 +326,8 @@ Service to manage logical volumes of the volume group.
 | CreateLV | [CreateLVRequest](#proto.CreateLVRequest) | [CreateLVResponse](#proto.CreateLVResponse) | Create a logical volume. |
 | RemoveLV | [RemoveLVRequest](#proto.RemoveLVRequest) | [Empty](#proto.Empty) | Remove a logical volume. |
 | ResizeLV | [ResizeLVRequest](#proto.ResizeLVRequest) | [Empty](#proto.Empty) | Resize a logical volume. |
+| CreateLVSnapshot | [CreateLVSnapshotRequest](#proto.CreateLVSnapshotRequest) | [CreateLVSnapshotResponse](#proto.CreateLVSnapshotResponse) |  |
+| DeleteLVSnapshot | [DeleteLVSnapshotRequest](#proto.DeleteLVSnapshotRequest) | [DeleteLVSnapshotResponse](#proto.DeleteLVSnapshotResponse) |  |
 
 
 <a name="proto.VGService"></a>
