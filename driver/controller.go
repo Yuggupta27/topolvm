@@ -204,6 +204,76 @@ func (s controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
+func (s controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
+	var (
+		// Since the kubernetes snapshots are Read-Only, we set accessType as 'ro' to activate thin-snapshots as read-only volumes
+		accessType = "ro"
+		// Set snaptype as 'thin' to activate thin-snapshots.
+		// TODO: When adding support for thick-snapshots, set this option as configurable.
+		snapType = "thin"
+	)
+	ctrlLogger.Info("CreateSnapshot called",
+		"name", req.GetName(),
+		"source_volume_id", req.GetSourceVolumeId(),
+		"parameters", req.GetParameters(),
+		"num_secrets", len(req.GetSecrets()))
+
+	if req.GetSourceVolumeId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing source volume id")
+	}
+
+	if req.GetName() == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing name")
+	}
+
+	name := strings.ToLower(req.GetName())
+	sourceVolID := req.GetSourceVolumeId()
+	sourceVol, err := s.lvService.GetVolume(ctx, sourceVolID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "failed to find source volumes")
+	}
+
+	snapshotID, err := s.lvService.CreateSnapshot(ctx, sourceVol, sourceVolID, name, snapType, accessType)
+	if err != nil {
+		_, ok := status.FromError(err)
+		if !ok {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return nil, err
+	}
+
+	return &csi.CreateSnapshotResponse{
+		Snapshot: &csi.Snapshot{
+			SnapshotId:     snapshotID,
+			SourceVolumeId: sourceVolID,
+			SizeBytes:      sourceVol.Spec.Size.Value(),
+			ReadyToUse:     err == nil,
+		},
+	}, nil
+}
+
+func (s controllerService) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
+
+	ctrlLogger.Info("DeleteSnapshot called",
+		"snapshot_id", req.GetSnapshotId(),
+		"num_secrets", len(req.GetSecrets()))
+
+	if req.GetSnapshotId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing snapshot id")
+	}
+
+	if err := s.lvService.DeleteVolume(ctx, req.GetSnapshotId()); err != nil {
+		ctrlLogger.Error(err, "DeleteSnapshot failed", "snapshot_id", req.GetSnapshotId())
+		_, ok := status.FromError(err)
+		if !ok {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return nil, err
+	}
+
+	return &csi.DeleteSnapshotResponse{}, nil
+}
+
 func (s controllerService) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	ctrlLogger.Info("ValidateVolumeCapabilities called",
 		"volume_id", req.GetVolumeId(),
