@@ -8,6 +8,7 @@ SKIP_NODE_FINALIZE ?= false
 MINIKUBE_VERSION := v1.25.1
 CERT_MANAGER_VERSION := v1.7.0
 KUSTOMIZE_VERSION := v4.4.1
+SNAPSHOT_CONTROLLER_VERSION := 4.2
 
 BINDIR := $(shell pwd)/bin
 SUDO := sudo
@@ -170,6 +171,11 @@ create-cluster: topolvm.img
 	$(HELM) repo update
 	$(HELM) dependency build ../charts/topolvm/
 	$(HELM) install --namespace=topolvm-system topolvm ../charts/topolvm/ -f $(HELM_VALUES_FILE) --set "controller.nodeSelector.kubernetes\.io/hostname"=$(KIND_CLUSTER_NAME)-worker $(HELM_SKIP_NODE_FINALIZE_FLAG)
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-$(SNAPSHOT_CONTROLLER_VERSION)/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-$(SNAPSHOT_CONTROLLER_VERSION)/client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-$(SNAPSHOT_CONTROLLER_VERSION)/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-$(SNAPSHOT_CONTROLLER_VERSION)/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
+    $(KUBECTL) apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-$(SNAPSHOT_CONTROLLER_VERSION)/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
 
 .PHONY: test
 test: create-cluster
