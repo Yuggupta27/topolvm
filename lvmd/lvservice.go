@@ -173,6 +173,16 @@ func (s *lvService) RemoveLV(_ context.Context, req *proto.RemoveLVRequest) (*pr
 }
 
 func (s *lvService) CreateLVSnapshot(_ context.Context, req *proto.CreateLVSnapshotRequest) (*proto.CreateLVSnapshotResponse, error) {
+
+	snapType := req.GetSnapType()
+	switch snapType {
+	case "thin":
+	case "thick":
+		return nil, status.Error(codes.Unimplemented, "thick snapshot is not implemented yet")
+	default:
+		return nil, status.Error(codes.InvalidArgument, "snapshot type is not supported")
+	}
+
 	dc, err := s.mapper.DeviceClass(req.DeviceClass)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "%s: %s", err.Error(), req.DeviceClass)
@@ -225,7 +235,13 @@ func (s *lvService) CreateLVSnapshot(_ context.Context, req *proto.CreateLVSnaps
 		})
 		return nil, status.Errorf(codes.ResourceExhausted, "no enough space left on VG: free=%d, requested=%d", free, requested)
 	}
-
+	log.Info("YUG lvservice req", map[string]interface{}{
+		"name":       req.Name,
+		"requested":  requested,
+		"sourceVol":  sourceVolume,
+		"snapType":   snapType,
+		"accessType": req.GetAccessType(),
+	})
 	// Create snapshot lv
 	snapLV, err := sourceLV.Snapshot(req.GetName(), requested)
 	if err != nil {
@@ -236,15 +252,15 @@ func (s *lvService) CreateLVSnapshot(_ context.Context, req *proto.CreateLVSnaps
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// If source volume is thin, activate the thin snapshot lv with accessmode.
-	if sourceLV.IsThin() {
-		if err := snapLV.Activate(req.AccessType); err != nil {
-			log.Error("failed to activate snap volume", map[string]interface{}{
-				log.FnError: err,
-				"name":      req.GetName(),
-			})
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+	// if sourceLV.IsThin() {
+	if err := snapLV.Activate(req.AccessType); err != nil {
+		log.Error("failed to activate snap volume", map[string]interface{}{
+			log.FnError: err,
+			"name":      req.GetName(),
+		})
+		return nil, status.Error(codes.Internal, err.Error())
 	}
+	// }
 	s.notify()
 
 	log.Info("created a new snapshot LV", map[string]interface{}{

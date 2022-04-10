@@ -9,7 +9,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/cybozu-go/log"
 )
@@ -607,40 +606,40 @@ func (l *LogicalVolume) Tags() []string {
 // created unconditionally.  Else, snapshots can be created
 // only for non-snapshot volumes.
 func (l *LogicalVolume) Snapshot(name string, cowSize uint64) (*LogicalVolume, error) {
-	if l.pool == nil {
-		if l.IsSnapshot() {
-			return nil, fmt.Errorf("snapshot of snapshot")
-		}
-		var gbSize uint64
-		if cowSize > 0 {
-			gbSize = cowSize >> 30
-		} else {
-			gbSize = (l.size * 2 / 10) >> 30
-			if gbSize > cowMax {
-				gbSize = cowMax
-			}
-		}
-		if gbSize < cowMin {
-			gbSize = cowMin
-		}
-		if l.size < (gbSize << 30) {
-			gbSize = (l.size >> 30) << 30
-		}
-		if err := CallLVM("lvcreate", "-s", "-n", name, "-L", fmt.Sprintf("%vg", gbSize), l.path); err != nil {
-			return nil, err
-		}
+	// if l.pool == nil {
+	// 	if l.IsSnapshot() {
+	// 		return nil, fmt.Errorf("snapshot of snapshot")
+	// 	}
+	// 	var gbSize uint64
+	// 	if cowSize > 0 {
+	// 		gbSize = cowSize >> 30
+	// 	} else {
+	// 		gbSize = (l.size * 2 / 10) >> 30
+	// 		if gbSize > cowMax {
+	// 			gbSize = cowMax
+	// 		}
+	// 	}
+	// 	if gbSize < cowMin {
+	// 		gbSize = cowMin
+	// 	}
+	// 	if l.size < (gbSize << 30) {
+	// 		gbSize = (l.size >> 30) << 30
+	// 	}
+	// 	if err := CallLVM("lvcreate", "-s", "-n", name, "-L", fmt.Sprintf("%vg", gbSize), l.path); err != nil {
+	// 		return nil, err
+	// 	}
 
-		time.Sleep(2 * time.Second)
-		snapLV, err := l.vg.FindVolume(name)
-		if err != nil {
-			return nil, err
-		}
-		// without this, wrong data may read from the snapshot.
-		if err := wrapExecCommand(blockdev, "--flushbufs", snapLV.path).Run(); err != nil {
-			return nil, err
-		}
-		return snapLV, nil
-	}
+	// 	time.Sleep(2 * time.Second)
+	// 	snapLV, err := l.vg.FindVolume(name)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	// without this, wrong data may read from the snapshot.
+	// 	if err := wrapExecCommand(blockdev, "--flushbufs", snapLV.path).Run(); err != nil {
+	// 		return nil, err
+	// 	}
+	// 	return snapLV, nil
+	// }
 
 	var lvcreateArgs []string
 	if _, err := os.Stat("/run/systemd/system"); err != nil {

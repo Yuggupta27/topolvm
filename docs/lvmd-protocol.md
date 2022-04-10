@@ -77,6 +77,8 @@ Represents the response of CreateLV.
 
 ### CreateLVSnapshotRequest
 
+
+
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | The logical volume name. |
@@ -85,6 +87,7 @@ Represents the response of CreateLV.
 | sourcevolume | [string](#string) |  | Source lv of snap |
 | size_gb | [uint64](#uint64) |  | Volume size in GiB. |
 | access_type | [string](#string) |  | Access type of snapshot |
+| snap_type | [string](#string) |  | Snapshot type; can be thick or thin. |
 
 
 

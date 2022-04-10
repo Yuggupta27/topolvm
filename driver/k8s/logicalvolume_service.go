@@ -297,6 +297,7 @@ func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, sourceVol *to
 		},
 	}
 
+	logger.Info("YUG LV CR SPEC INFO", "name", sname, "snapType", snapshotLV.Spec.Snapshot.Type, "datasource", snapshotLV.Spec.Snapshot.DataSource, "accessType", snapshotLV.Spec.Snapshot.AccessType)
 	existingSnapshot := &topolvmv1.LogicalVolume{}
 	err := s.getter.Get(ctx, types.NamespacedName{Name: sname}, existingSnapshot)
 	if err != nil {

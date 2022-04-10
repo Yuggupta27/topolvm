@@ -199,6 +199,7 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 
 		// Create a snapshot LV
 		if lv.Spec.Snapshot.DataSource != "" {
+			log.Info("YUG Datasource found", "name", lv.Name, "uid", lv.UID, "status.volumeID", lv.Status.VolumeID)
 			switch lv.Spec.Snapshot.AccessType {
 			case "ro", "rw":
 			default:
@@ -213,6 +214,7 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 				Sourcevolume: lv.Spec.Snapshot.DataSource,
 				SizeGb:       uint64(reqBytes >> 30),
 				AccessType:   lv.Spec.Snapshot.AccessType,
+				SnapType:     lv.Spec.Snapshot.Type,
 			})
 			if err != nil {
 				code, message := extractFromError(err)
@@ -223,6 +225,7 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 			}
 			volume = resp.Snap
 		} else {
+			log.Info("YUG Creating a regular LV", "name", lv.Name, "uid", lv.UID, "status.volumeID", lv.Status.VolumeID)
 			// Create a regular lv
 			resp, err := r.lvService.CreateLV(ctx, &proto.CreateLVRequest{
 				Name:        string(lv.UID),
