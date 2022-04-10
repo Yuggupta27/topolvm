@@ -38,7 +38,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	source := req.GetVolumeContentSource()
 	deviceClass := req.GetParameters()[topolvm.DeviceClassKey]
 
-	ctrlLogger.Info("CreateVolume called",
+	ctrlLogger.Info("YUG ignore CreateVolume called",
 		"name", req.GetName(),
 		"device_class", deviceClass,
 		"required", req.GetCapacityRange().GetRequiredBytes(),
@@ -212,7 +212,7 @@ func (s controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		// TODO: When adding support for thick-snapshots, set this option as configurable.
 		snapType = "thin"
 	)
-	ctrlLogger.Info("CreateSnapshot called",
+	ctrlLogger.Info("YUG CreateSnapshot called",
 		"name", req.GetName(),
 		"source_volume_id", req.GetSourceVolumeId(),
 		"parameters", req.GetParameters(),
