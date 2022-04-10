@@ -44,7 +44,7 @@ func testSanity() {
 	tc.ControllerAddress = path.Join(baseDir, "/controller/csi-topolvm.sock")
 	tc.TargetPath = path.Join(baseDir, "/node/mountdir")
 	tc.StagingPath = path.Join(baseDir, "/node/stagingdir")
-	tc.TestVolumeSize = 1073741824
+	tc.TestVolumeSize = 1073741824 * 2
 	tc.IDGen = &sanity.DefaultIDGenerator{}
 	tc.CheckPath = func(path string) (sanity.PathKind, error) {
 		_, _, err := kubectl("exec", "-n", "topolvm-system", "daemonset/topolvm-node", "--", "test", "-f", path)
