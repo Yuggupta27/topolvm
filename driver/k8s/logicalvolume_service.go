@@ -16,7 +16,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -296,10 +295,30 @@ func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, sourceVol *to
 			},
 		},
 	}
+	// existingLV := new(topolvmv1.LogicalVolume)
+	// err := s.getter.Get(ctx, client.ObjectKey{Name: name}, existingLV)
+	// if err != nil {
+	// 	if !apierrors.IsNotFound(err) {
+	// 		return "", err
+	// 	}
 
+	// 	err := s.writer.Create(ctx, lv)
+	// 	if err != nil {
+	// 		return "", err
+	// 	}
+	// 	logger.Info("created LogicalVolume CRD", "name", name)
+	// } else {
+	// 	// LV with same name was found; check compatibility
+	// 	// skip check of capabilities because (1) we allow both of two access types, and (2) we allow only one access mode
+	// 	// for ease of comparison, sizes are compared strictly, not by compatibility of ranges
+	// 	if !existingLV.IsCompatibleWith(lv) {
+	// 		return "", status.Error(codes.AlreadyExists, "Incompatible LogicalVolume already exists")
+	// 	}
+	// 	// compatible LV was found
+	// }
 	logger.Info("YUG LV CR SPEC INFO", "name", sname, "snapType", snapshotLV.Spec.Snapshot.Type, "datasource", snapshotLV.Spec.Snapshot.DataSource, "accessType", snapshotLV.Spec.Snapshot.AccessType)
-	existingSnapshot := &topolvmv1.LogicalVolume{}
-	err := s.getter.Get(ctx, types.NamespacedName{Name: sname}, existingSnapshot)
+	existingSnapshot := new(topolvmv1.LogicalVolume)
+	err := s.getter.Get(ctx, client.ObjectKey{Name: sname}, existingSnapshot)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return "", err
@@ -309,6 +328,7 @@ func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, sourceVol *to
 			return "", err
 		}
 		logger.Info("created LogicalVolume CRD", "name", sname)
+		logger.Info("YUG Existing CRD", "name", existingSnapshot.Name, "snapType", existingSnapshot.Spec.Snapshot.Type, "datasource", existingSnapshot.Spec.Snapshot.DataSource, "accessType", existingSnapshot.Spec.Snapshot.AccessType)
 		logger.Info("YUG Created CRD", "name", sname, "snapType", snapshotLV.Spec.Snapshot.Type, "datasource", snapshotLV.Spec.Snapshot.DataSource, "accessType", snapshotLV.Spec.Snapshot.AccessType)
 	} else {
 		if !existingSnapshot.IsCompatibleWith(snapshotLV) || sourceVolID != sourceVol.Status.VolumeID {
