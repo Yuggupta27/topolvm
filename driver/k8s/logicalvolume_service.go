@@ -309,6 +309,7 @@ func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, sourceVol *to
 			return "", err
 		}
 		logger.Info("created LogicalVolume CRD", "name", sname)
+		logger.Info("YUG Created CRD", "name", sname, "snapType", snapshotLV.Spec.Snapshot.Type, "datasource", snapshotLV.Spec.Snapshot.DataSource, "accessType", snapshotLV.Spec.Snapshot.AccessType)
 	} else {
 		if !existingSnapshot.IsCompatibleWith(snapshotLV) || sourceVolID != sourceVol.Status.VolumeID {
 			return "", status.Error(codes.AlreadyExists, "Incompatible LogicalVolume already exists")
@@ -316,6 +317,7 @@ func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, sourceVol *to
 	}
 
 	for {
+		logger.Info("YUG Wating for CR", "name", sname, "snapType", snapshotLV.Spec.Snapshot.Type, "datasource", snapshotLV.Spec.Snapshot.DataSource, "accessType", snapshotLV.Spec.Snapshot.AccessType)
 		logger.Info("waiting for setting 'status.volumeID'", "name", sname)
 		select {
 		case <-ctx.Done():

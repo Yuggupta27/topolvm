@@ -176,7 +176,7 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 	if lv.Status.Code != codes.OK {
 		return nil
 	}
-
+	log.Info("YUG Creating lv in lv controller", "name", lv.Name, "uid", lv.UID, "status.volumeID", lv.Status.VolumeID, "snapType", lv.Spec.Snapshot.Type, "datasource", lv.Spec.Snapshot.DataSource, "accessType", lv.Spec.Snapshot.AccessType)
 	reqBytes := lv.Spec.Size.Value()
 
 	err := func() error {
