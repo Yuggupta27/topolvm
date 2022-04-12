@@ -210,12 +210,17 @@ func (s *lvService) CreateLVSnapshot(_ context.Context, req *proto.CreateLVSnaps
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	log.Info("YUG GUPTA reached where decide", map[string]interface{}{})
+
 	var requested uint64
 	if sourceLV.IsThin() {
+		log.Info("YUG GUPTA SOURCE IS THIN", map[string]interface{}{})
 		// In case of thin-snapshots, the size is the same as the source volume.
 		requested = sourceLV.Size()
 	} else {
-		requested = req.GetSizeGb() << 30
+		log.Info("YUG GUPTA SOURCE IS THICK", map[string]interface{}{})
+		return nil, status.Error(codes.Unimplemented, "thick snapshot is not implemented yet")
+		// requested = req.GetSizeGb() << 30
 	}
 
 	// In case of snapshots, the size is the same as the source volume.
