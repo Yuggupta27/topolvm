@@ -246,6 +246,8 @@ func (s *lvService) CreateLVSnapshot(_ context.Context, req *proto.CreateLVSnaps
 		"sourceVol":  sourceVolume,
 		"snapType":   snapType,
 		"accessType": req.GetAccessType(),
+		"volumeMode": req.GetVolumeMode(),
+		"fsType":     req.GetFsType(),
 	})
 	// Create snapshot lv
 	snapLV, err := sourceLV.Snapshot(req.GetName(), requested)
@@ -264,6 +266,20 @@ func (s *lvService) CreateLVSnapshot(_ context.Context, req *proto.CreateLVSnaps
 			"name":      req.GetName(),
 		})
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if req.GetVolumeMode() != "" {
+		log.Info("Volume mode is NOT empty", map[string]interface{}{})
+		err = snapLV.UpdateFSUUID(req.GetVolumeMode(), req.GetFsType())
+		if err != nil {
+			log.Error("failed to update file system UUID", map[string]interface{}{
+				log.FnError: err,
+				"name":      req.GetName(),
+			})
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		log.Info("Volume mode was empty", map[string]interface{}{})
 	}
 	// }
 	s.notify()

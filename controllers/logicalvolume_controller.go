@@ -196,12 +196,16 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 		}
 
 		var volume *proto.LogicalVolume
-
+		var volumeMode string
+		var fsType string
 		// Create a snapshot LV
 		if lv.Spec.Snapshot.DataSource != "" {
 			log.Info("YUG Datasource found", "name", lv.Name, "uid", lv.UID, "status.volumeID", lv.Status.VolumeID)
 			switch lv.Spec.Snapshot.AccessType {
-			case "ro", "rw":
+			case "ro":
+			case "rw":
+				volumeMode = lv.Spec.VolumeInfo.VolumeMode
+				fsType = lv.Spec.VolumeInfo.FsType
 			default:
 				// log.("invalid access type for source volume", lv.Spec.Snapshot.AccessType)
 				return fmt.Errorf("invalid access type for source volume: %s", lv.Spec.Snapshot.AccessType)
@@ -215,6 +219,8 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 				SizeGb:       uint64(reqBytes >> 30),
 				AccessType:   lv.Spec.Snapshot.AccessType,
 				SnapType:     lv.Spec.Snapshot.Type,
+				VolumeMode:   volumeMode,
+				FsType:       fsType,
 			})
 			if err != nil {
 				code, message := extractFromError(err)

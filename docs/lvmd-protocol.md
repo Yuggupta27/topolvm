@@ -88,6 +88,8 @@ Represents the response of CreateLV.
 | size_gb | [uint64](#uint64) |  | Volume size in GiB. |
 | access_type | [string](#string) |  | Access type of snapshot |
 | snap_type | [string](#string) |  | Snapshot type; can be thick or thin. |
+| volume_mode | [string](#string) |  | Volume mode of logical volume |
+| fs_type | [string](#string) |  | Filesystem type of logical volume |
 
 
 

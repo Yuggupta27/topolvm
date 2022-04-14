@@ -670,6 +670,75 @@ func (l *LogicalVolume) Activate(access string) error {
 	return nil
 }
 
+func Call(cmd string, args ...string) error {
+	c := wrapExecCommand(cmd, args...)
+	log.Info("invoking command", map[string]interface{}{
+		"cmd":  cmd,
+		"args": args,
+	})
+	c.Stderr = os.Stderr
+	return c.Run()
+}
+
+func (l *LogicalVolume) UpdateFSUUID(volumeMode, fsType string) error {
+	var err error
+	if volumeMode == "Filesystem" {
+		if fsType == "" {
+			fsType = "ext4"
+		}
+		switch fsType {
+		case "xfs":
+			dirIsCreate := false
+			mounted := false
+			mountDir := fmt.Sprintf("/tmp/%s", l.name)
+
+			defer func() {
+				if err != nil {
+					if mounted {
+						Call("umount", mountDir)
+					}
+
+					if dirIsCreate {
+						Call("rm", "-rf", mountDir)
+					}
+				}
+			}()
+
+			err = Call("mkdir", "-p", mountDir)
+			if err != nil {
+				return err
+			}
+			dirIsCreate = true
+
+			// mount to replay log
+			err = Call("mount", l.path, "-o", "nouuid", mountDir)
+			if err != nil {
+				return err
+			}
+			mounted = true
+
+			err = Call("umount", mountDir)
+			if err != nil {
+				return err
+			}
+			mounted = false
+
+			err = Call("rm", "-rf", mountDir)
+			if err != nil {
+				return err
+			}
+			dirIsCreate = false
+
+			return Call("xfs_admin", "-U", "generate", l.path)
+		case "ext4":
+		default:
+			return fmt.Errorf("unsuport filesystem type: %s", fsType)
+		}
+	}
+
+	return nil
+}
+
 // Resize this volume.
 // newSize is a new size of this volume in bytes.
 func (l *LogicalVolume) Resize(newSize uint64) error {

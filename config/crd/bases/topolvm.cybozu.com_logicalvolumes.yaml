@@ -52,21 +52,32 @@ spec:
                 description: SnapshotSpec defines is a logical volume snapshot.
                 properties:
                   accessType:
-                    description: accessType specifies how the user intents to consume
-                      the thin-snapshot logical volume.
+                    description: '''accessType'' specifies how the user intents to
+                      consume the thin-snapshot logical volume.'
                     type: string
                   dataSource:
-                    description: dataSource specifies the volumeID of the parent logical
-                      volume.
+                    description: '''dataSource'' specifies the volumeID of the parent
+                      logical volume.'
                     type: string
                   type:
-                    description: type specifies if the snapshot will be thick or thin
-                      provisioned.
+                    description: '''type'' specifies if the snapshot will be thick
+                      or thin provisioned.'
                     type: string
                 required:
                 - accessType
                 - dataSource
                 - type
+                type: object
+              volumeInfo:
+                description: VolumeInfoSpec defines is a logical volume snapshot.
+                properties:
+                  fsType:
+                    type: string
+                  volumeMode:
+                    type: string
+                required:
+                - fsType
+                - volumeMode
                 type: object
             required:
             - name

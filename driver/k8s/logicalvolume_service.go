@@ -109,13 +109,14 @@ func NewLogicalVolumeService(mgr manager.Manager) (*LogicalVolumeService, error)
 }
 
 // CreateVolume creates volume
-func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name, parentID string, requestGb int64, sourceVol *topolvmv1.LogicalVolume) (string, error) {
+func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name, parentID string, requestGb int64, sourceVol *topolvmv1.LogicalVolume, volumeMode, fsType string) (string, error) {
 	logger.Info("k8s.CreateVolume called", "name", name, "node", node, "size_gb", requestGb, "parentID", parentID)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var lv *topolvmv1.LogicalVolume
 	// make changes in the CR for restore and clone
 	if parentID == "" {
+		logger.Info("YUG parentID is nil, craeting a normal volume")
 		lv = &topolvmv1.LogicalVolume{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "LogicalVolume",
@@ -133,15 +134,16 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name,
 		}
 
 	} else {
-		parentLV := new(topolvmv1.LogicalVolume)
-		err := s.getter.Get(ctx, client.ObjectKey{Name: name}, parentLV)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return "", ErrVolumeNotFound
-			} else {
-				return "", fmt.Errorf("failed to fetch source volume %s: %v", parentID, err)
-			}
-		}
+		logger.Info("YUG parentID is NOT nil, craeting a restored volume")
+		// parentLV := new(topolvmv1.LogicalVolume)
+		// err := s.getter.Get(ctx, client.ObjectKey{Name: name}, parentLV)
+		// if err != nil {
+		// 	if apierrors.IsNotFound(err) {
+		// 		return "", ErrVolumeNotFound
+		// 	} else {
+		// 		return "", fmt.Errorf("failed to fetch source volume %s: %v", parentID, err)
+		// 	}
+		// }
 
 		lv = &topolvmv1.LogicalVolume{
 			TypeMeta: metav1.TypeMeta{
@@ -161,38 +163,47 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name,
 					DataSource: sourceVol.Status.VolumeID,
 					AccessType: "rw",
 				},
+				VolumeInfo: topolvmv1.VolumeInfoSpec{
+					VolumeMode: volumeMode,
+					FsType:     fsType,
+				},
 			},
 		}
 	}
 
+	logger.Info("YUG LV CR SPEC INFO", "name", lv.Name, "snapType", lv.Spec.Snapshot.Type, "datasource", lv.Spec.Snapshot.DataSource, "accessType", lv.Spec.Snapshot.AccessType)
 	// verify if source volume exists.
-	if parentID != "" {
-		parentLV := new(topolvmv1.LogicalVolume)
-		err := s.getter.Get(ctx, client.ObjectKey{Name: name}, parentLV)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return "", ErrVolumeNotFound
-			} else {
-				return "", fmt.Errorf("failed to fetch source volume %s: %v", parentID, err)
-			}
-		}
-	}
+	// if parentID != "" {
+	// 	logger.Info("YUG here parentID is NOT nil, creating a restored volume")
+	// 	parentLV := new(topolvmv1.LogicalVolume)
+	// 	err := s.getter.Get(ctx, client.ObjectKey{Name: name}, parentLV)
+	// 	if err != nil {
+	// 		if apierrors.IsNotFound(err) {
+	// 			return "", ErrVolumeNotFound
+	// 		} else {
+	// 			return "", fmt.Errorf("failed to fetch source volume %s: %v", parentID, err)
+	// 		}
+	// 	}
+	// }
+	logger.Info("YUG going to create CR if not already present")
 	existingLV := new(topolvmv1.LogicalVolume)
 	err := s.getter.Get(ctx, client.ObjectKey{Name: name}, existingLV)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return "", err
 		}
-
+		logger.Info("YUG didn't find the CR")
 		err := s.writer.Create(ctx, lv)
 		if err != nil {
 			return "", err
 		}
 		logger.Info("created LogicalVolume CRD", "name", name)
+		logger.Info("YUG Created VOLUME CRD", "name", name, "snapType", lv.Spec.Snapshot.Type, "datasource", lv.Spec.Snapshot.DataSource, "accessType", lv.Spec.Snapshot.AccessType)
 	} else {
 		// LV with same name was found; check compatibility
 		// skip check of capabilities because (1) we allow both of two access types, and (2) we allow only one access mode
 		// for ease of comparison, sizes are compared strictly, not by compatibility of ranges
+		logger.Info("YUG lv with same name was found", "name", existingLV.Name)
 		if !existingLV.IsCompatibleWith(lv) {
 			return "", status.Error(codes.AlreadyExists, "Incompatible LogicalVolume already exists")
 		}
@@ -201,6 +212,7 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name,
 	retry := 0
 	for {
 		logger.Info("waiting for setting 'status.volumeID'", "name", name)
+		logger.Info("YUG waiting")
 		select {
 		case <-ctx.Done():
 			return "", ctx.Err()
@@ -223,10 +235,12 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name,
 				// log this error but do not return this error, because newLV.Status.Message is more important
 				logger.Error(err, "failed to delete LogicalVolume")
 			}
+			logger.Info("YUG deleted volume", newLV.Name)
 			return "", status.Error(newLV.Status.Code, newLV.Status.Message)
 		}
 		retry++
 		if parentID != "" && retry > 600 {
+			logger.Info("YUG retry>600", parentID)
 			return "", status.Error(codes.DeadlineExceeded, "waiting volume is ok")
 		}
 	}
@@ -375,6 +389,7 @@ func (s *LogicalVolumeService) ValidateContentSource(ctx context.Context, req *c
 
 	switch volumeSource.Type.(type) {
 	case *csi.VolumeContentSource_Snapshot:
+		logger.Info("YUG Content source is SNAPSHOT")
 		snapshotID := req.VolumeContentSource.GetSnapshot().GetSnapshotId()
 		if snapshotID == "" {
 			return nil, "", status.Error(codes.NotFound, "Snapshot ID cannot be empty")
@@ -386,6 +401,7 @@ func (s *LogicalVolumeService) ValidateContentSource(ctx context.Context, req *c
 		return snapshotVol, snapshotID, nil
 
 	case *csi.VolumeContentSource_Volume:
+		logger.Info("YUG Content source is VOLUME")
 		volumeID := req.VolumeContentSource.GetVolume().GetVolumeId()
 		if volumeID == "" {
 			return nil, "", status.Error(codes.NotFound, "Volume ID cannot be empty")

@@ -48,6 +48,8 @@ message CreateLVSnapshotRequest {
     uint64 size_gb = 5;           // Volume size in GiB.
     string access_type = 6;       // Access type of snapshot
     string snap_type    = 7;      // Snapshot type; can be thick or thin.
+    string volume_mode = 8;      // Volume mode of logical volume
+    string fs_type = 9;          // Filesystem type of logical volume
 }
 
 message CreateLVSnapshotResponse {

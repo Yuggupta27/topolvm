@@ -20,6 +20,12 @@ type SnapshotSpec struct {
 	AccessType string `json:"accessType"`
 }
 
+// VolumeInfoSpec defines is a logical volume snapshot.
+type VolumeInfoSpec struct {
+	VolumeMode string `json:"volumeMode"`
+	FsType     string `json:"fsType"`
+}
+
 // LogicalVolumeSpec defines the desired state of LogicalVolume
 type LogicalVolumeSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -31,6 +37,8 @@ type LogicalVolumeSpec struct {
 	DeviceClass string            `json:"deviceClass,omitempty"`
 	// +kubebuilder:validation:Optional
 	Snapshot SnapshotSpec `json:"snapshot,omitempty"`
+	// +kubebuilder:validation:Optional
+	VolumeInfo VolumeInfoSpec `json:"volumeInfo,omitempty"`
 }
 
 // LogicalVolumeStatus defines the observed state of LogicalVolume
