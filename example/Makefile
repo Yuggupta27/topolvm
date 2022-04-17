@@ -87,6 +87,7 @@ start-lvmd: $(TMPDIR)/lvmd/lvmd.yaml
 	truncate --size=20G $(BACKING_STORE)/backing_store; \
 	$(SUDO) losetup -f $(BACKING_STORE)/backing_store; \
 	$(SUDO) vgcreate -f -y myvg1 $$($(SUDO) losetup -j $(BACKING_STORE)/backing_store | cut -d: -f1); \
+	$(SUDO) lvcreate -L 10G -T myvg1/thinpool; \
 	$(SUDO) systemd-run --unit=lvmd.service $(shell pwd)/build/lvmd --config=$(TMPDIR)/lvmd/lvmd.yaml; \
 
 stop-lvmd:

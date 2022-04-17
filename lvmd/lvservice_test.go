@@ -247,4 +247,76 @@ func TestLVService(t *testing.T) {
 	if err != command.ErrNotFound {
 		t.Error("unexpected error: ", err)
 	}
+
+	// thin snpashots validation
+
+	count = 0
+	// create sourceVolume
+	res, err = lvService.CreateLV(context.Background(), &proto.CreateLVRequest{
+		Name:        "sourceVol",
+		DeviceClass: thindev,
+		SizeGb:      1,
+		Tags:        []string{"testtag1", "testtag2"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Errorf("is not notified: %d", count)
+	}
+	if res.GetVolume().GetName() != "sourceVol" {
+		t.Errorf(`res.Volume.Name != "sourceVol": %s`, res.GetVolume().GetName())
+	}
+	if res.GetVolume().GetSizeGb() != 1 {
+		t.Errorf(`res.Volume.SizeGb != 1: %d`, res.GetVolume().GetSizeGb())
+	}
+	err = exec.Command("lvs", vg.Name()+"/sourceVol").Run()
+	if err != nil {
+		t.Error("failed to create logical volume")
+	}
+	lv, err = pool.FindVolume("sourceVol")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lv.Tags()[0] != "testtag1" {
+		t.Errorf(`testtag1 not present on volume`)
+	}
+	if lv.Tags()[1] != "testtag2" {
+		t.Errorf(`testtag1 not present on volume`)
+	}
+
+	var snapRes *proto.CreateLVSnapshotResponse
+	snapRes, err = lvService.CreateLVSnapshot(context.Background(), &proto.CreateLVSnapshotRequest{
+		Name:         "snapshot1",
+		DeviceClass:  thindev,
+		Sourcevolume: "sourceVol",
+		AccessType:   "ro",
+		SnapType:     "thin",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Errorf("is not notified: %d", count)
+	}
+	if snapRes.GetSnap().GetName() != "snapshot1" {
+		t.Errorf(`res.Volume.Name != "snapshot1": %s`, res.GetVolume().GetName())
+	}
+	if res.GetVolume().GetSizeGb() != 1 {
+		t.Errorf(`res.Volume.SizeGb != 1: %d`, res.GetVolume().GetSizeGb())
+	}
+	err = exec.Command("lvs", vg.Name()+"/snapshot1").Run()
+	if err != nil {
+		t.Error("failed to create logical volume")
+	}
+	lv, err = pool.FindVolume("snapshot1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lv.Tags()[0] != "testtag1" {
+		t.Errorf(`testtag1 not present on volume`)
+	}
+	if lv.Tags()[1] != "testtag2" {
+		t.Errorf(`testtag1 not present on volume`)
+	}
 }

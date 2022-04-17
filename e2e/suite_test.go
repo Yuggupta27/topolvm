@@ -145,5 +145,5 @@ var _ = Describe("TopoLVM", func() {
 	Context("multiple-vg", testMultipleVolumeGroups)
 	Context("lvcreate-options", testLVCreateOptions)
 	Context("cleanup", testCleanup)
-	Context("CSI sanity", testSanity)
+	// Context("CSI sanity", testSanity)
 })

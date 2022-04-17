@@ -4,3 +4,7 @@ device-classes:
     volume-group: myvg1
     default: true
     spare-gb: 10
+    type: thin
+    thin-pool:
+        name: thinpool
+        overprovision-ratio: 50.0

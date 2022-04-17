@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/topolvm/topolvm"
+	v1 "github.com/topolvm/topolvm/api/v1"
 	"github.com/topolvm/topolvm/csi"
 	"github.com/topolvm/topolvm/driver/k8s"
 	"google.golang.org/grpc/codes"
@@ -14,7 +17,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-var ctrlLogger = ctrl.Log.WithName("driver").WithName("controller")
+var (
+	err error
+
+	ctrlLogger = ctrl.Log.WithName("driver").WithName("controller")
+	volumeMode string
+	fsType     string
+)
 
 // NewControllerService returns a new ControllerServer.
 func NewControllerService(lvService *k8s.LogicalVolumeService, nodeService *k8s.NodeService) csi.ControllerServer {
@@ -33,7 +42,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	source := req.GetVolumeContentSource()
 	deviceClass := req.GetParameters()[topolvm.DeviceClassKey]
 
-	ctrlLogger.Info("CreateVolume called",
+	ctrlLogger.Info("YUG ignore CreateVolume called",
 		"name", req.GetName(),
 		"device_class", deviceClass,
 		"required", req.GetCapacityRange().GetRequiredBytes(),
@@ -43,10 +52,21 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		"capabilities", capabilities,
 		"content_source", source,
 		"accessibility_requirements", req.GetAccessibilityRequirements().String())
-
+	var parentID string
+	var parentVol *v1.LogicalVolume
+	// check if the create volume request has a data source
 	if source != nil {
-		return nil, status.Error(codes.InvalidArgument, "volume_content_source not supported")
+		ctrlLogger.Info("YUG source is not nil")
+		// get the parent volumeID/snapshotID if exists
+		parentVol, parentID, err = s.lvService.ValidateContentSource(ctx, req)
+		ctrlLogger.Info("YUG parentVol", parentVol, "parentID", parentID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		ctrlLogger.Info("YUG source is NIL")
 	}
+
 	if capabilities == nil {
 		return nil, status.Error(codes.InvalidArgument, "no volume capabilities are provided")
 	}
@@ -54,8 +74,11 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// check required volume capabilities
 	for _, capability := range capabilities {
 		if block := capability.GetBlock(); block != nil {
+			volumeMode = "Block"
 			ctrlLogger.Info("CreateVolume specifies volume capability", "access_type", "block")
 		} else if mount := capability.GetMount(); mount != nil {
+			volumeMode = "Filesystem"
+			fsType = mount.GetFsType()
 			ctrlLogger.Info("CreateVolume specifies volume capability",
 				"access_type", "mount",
 				"fs_type", mount.GetFsType(),
@@ -75,16 +98,17 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			}
 		}
 	}
-
 	requestGb, err := convertRequestCapacity(req.GetCapacityRange().GetRequiredBytes(), req.GetCapacityRange().GetLimitBytes())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	ctrlLogger.Info("YUG Converted req capacity", requestGb)
 
 	// process topology
 	var node string
 	requirements := req.GetAccessibilityRequirements()
 	if requirements == nil {
+		ctrlLogger.Info("YUG No accessibilty req")
 		// In CSI spec, controllers are required that they response OK even if accessibility_requirements field is nil.
 		// So we must create volume, and must not return error response in this case.
 		// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
@@ -102,6 +126,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 		node = nodeName
 	} else {
+		ctrlLogger.Info("YUG HAS accessibilty req")
 		for _, topo := range requirements.Preferred {
 			if v, ok := topo.GetSegments()[topolvm.TopologyNodeKey]; ok {
 				node = v
@@ -127,8 +152,9 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	name = strings.ToLower(name)
+	ctrlLogger.Info("YUG Calling lvservice.CreateVolume now")
 
-	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceClass, name, requestGb)
+	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceClass, name, parentID, requestGb, parentVol, volumeMode, fsType)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
@@ -141,6 +167,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		Volume: &csi.Volume{
 			CapacityBytes: requestGb << 30,
 			VolumeId:      volumeID,
+			ContentSource: req.GetVolumeContentSource(),
 			AccessibleTopology: []*csi.Topology{
 				{
 					Segments: map[string]string{topolvm.TopologyNodeKey: node},
@@ -189,6 +216,81 @@ func (s controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	}
 
 	return &csi.DeleteVolumeResponse{}, nil
+}
+
+func (s controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
+	var (
+		// Since the kubernetes snapshots are Read-Only, we set accessType as 'ro' to activate thin-snapshots as read-only volumes
+		accessType = "ro"
+		// Set snaptype as 'thin' to activate thin-snapshots.
+		// TODO: When adding support for thick-snapshots, set this option as configurable.
+		snapType = "thin"
+	)
+	ctrlLogger.Info("YUG CreateSnapshot called",
+		"name", req.GetName(),
+		"source_volume_id", req.GetSourceVolumeId(),
+		"parameters", req.GetParameters(),
+		"num_secrets", len(req.GetSecrets()))
+
+	if req.GetSourceVolumeId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing source volume id")
+	}
+
+	if req.GetName() == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing name")
+	}
+
+	name := strings.ToLower(req.GetName())
+	sourceVolID := req.GetSourceVolumeId()
+	sourceVol, err := s.lvService.GetVolume(ctx, sourceVolID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "failed to find source volumes")
+	}
+	snapTimeStamp := &timestamp.Timestamp{
+		Seconds: time.Now().Unix(),
+		Nanos:   0,
+	}
+
+	snapshotID, err := s.lvService.CreateSnapshot(ctx, sourceVol, sourceVolID, name, snapType, accessType)
+	if err != nil {
+		_, ok := status.FromError(err)
+		if !ok {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return nil, err
+	}
+
+	return &csi.CreateSnapshotResponse{
+		Snapshot: &csi.Snapshot{
+			SnapshotId:     snapshotID,
+			SourceVolumeId: sourceVolID,
+			SizeBytes:      sourceVol.Spec.Size.Value(),
+			CreationTime:   snapTimeStamp,
+			ReadyToUse:     err == nil,
+		},
+	}, nil
+}
+
+func (s controllerService) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
+
+	ctrlLogger.Info("DeleteSnapshot called",
+		"snapshot_id", req.GetSnapshotId(),
+		"num_secrets", len(req.GetSecrets()))
+
+	if req.GetSnapshotId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing snapshot id")
+	}
+
+	if err := s.lvService.DeleteVolume(ctx, req.GetSnapshotId()); err != nil {
+		ctrlLogger.Error(err, "DeleteSnapshot failed", "snapshot_id", req.GetSnapshotId())
+		_, ok := status.FromError(err)
+		if !ok {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return nil, err
+	}
+
+	return &csi.DeleteSnapshotResponse{}, nil
 }
 
 func (s controllerService) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
@@ -278,6 +380,7 @@ func (s controllerService) ControllerGetCapabilities(context.Context, *csi.Contr
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_GET_CAPACITY,
 		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+		csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
 	}
 
 	csiCaps := make([]*csi.ControllerServiceCapability, len(capabilities))

@@ -9,6 +9,23 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// SnapshotSpec defines is a logical volume snapshot.
+type SnapshotSpec struct {
+	// 'type' specifies if the snapshot will be thick or thin provisioned.
+	Type string `json:"type"`
+	// 'dataSource' specifies the volumeID of the parent logical volume.
+	DataSource string `json:"dataSource"`
+	//'accessType' specifies how the user intents to consume the
+	// thin-snapshot logical volume.
+	AccessType string `json:"accessType"`
+}
+
+// VolumeInfoSpec defines is a logical volume snapshot.
+type VolumeInfoSpec struct {
+	VolumeMode string `json:"volumeMode"`
+	FsType     string `json:"fsType"`
+}
+
 // LogicalVolumeSpec defines the desired state of LogicalVolume
 type LogicalVolumeSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -18,6 +35,10 @@ type LogicalVolumeSpec struct {
 	NodeName    string            `json:"nodeName"`
 	Size        resource.Quantity `json:"size"`
 	DeviceClass string            `json:"deviceClass,omitempty"`
+	// +kubebuilder:validation:Optional
+	Snapshot SnapshotSpec `json:"snapshot,omitempty"`
+	// +kubebuilder:validation:Optional
+	VolumeInfo VolumeInfoSpec `json:"volumeInfo,omitempty"`
 }
 
 // LogicalVolumeStatus defines the observed state of LogicalVolume
