@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/topolvm/topolvm"
+	v1 "github.com/topolvm/topolvm/api/v1"
 	"github.com/topolvm/topolvm/csi"
 	"github.com/topolvm/topolvm/driver/k8s"
 	"google.golang.org/grpc/codes"
@@ -14,7 +15,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-var ctrlLogger = ctrl.Log.WithName("driver").WithName("controller")
+var (
+	err error
+
+	ctrlLogger = ctrl.Log.WithName("driver").WithName("controller")
+	volumeMode string
+	fsType     string
+)
 
 // NewControllerService returns a new ControllerServer.
 func NewControllerService(lvService *k8s.LogicalVolumeService, nodeService *k8s.NodeService) csi.ControllerServer {
@@ -43,10 +50,17 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		"capabilities", capabilities,
 		"content_source", source,
 		"accessibility_requirements", req.GetAccessibilityRequirements().String())
-
+	var parentID string
+	var parentVol *v1.LogicalVolume
+	// check if the create volume request has a data source
 	if source != nil {
-		return nil, status.Error(codes.InvalidArgument, "volume_content_source not supported")
+		// get the parent volumeID/snapshotID if exists
+		parentVol, parentID, err = s.lvService.ValidateContentSource(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	if capabilities == nil {
 		return nil, status.Error(codes.InvalidArgument, "no volume capabilities are provided")
 	}
@@ -54,8 +68,11 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// check required volume capabilities
 	for _, capability := range capabilities {
 		if block := capability.GetBlock(); block != nil {
+			volumeMode = "Block"
 			ctrlLogger.Info("CreateVolume specifies volume capability", "access_type", "block")
 		} else if mount := capability.GetMount(); mount != nil {
+			volumeMode = "Filesystem"
+			fsType = mount.GetFsType()
 			ctrlLogger.Info("CreateVolume specifies volume capability",
 				"access_type", "mount",
 				"fs_type", mount.GetFsType(),
@@ -128,7 +145,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	name = strings.ToLower(name)
 
-	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceClass, name, requestGb)
+	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceClass, name, parentID, requestGb, parentVol, volumeMode, fsType)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
@@ -141,6 +158,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		Volume: &csi.Volume{
 			CapacityBytes: requestGb << 30,
 			VolumeId:      volumeID,
+			ContentSource: req.GetVolumeContentSource(),
 			AccessibleTopology: []*csi.Topology{
 				{
 					Segments: map[string]string{topolvm.TopologyNodeKey: node},
@@ -278,6 +296,7 @@ func (s controllerService) ControllerGetCapabilities(context.Context, *csi.Contr
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_GET_CAPACITY,
 		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+		csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
 	}
 
 	csiCaps := make([]*csi.ControllerServiceCapability, len(capabilities))
