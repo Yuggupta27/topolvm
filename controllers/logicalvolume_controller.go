@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/topolvm/topolvm"
@@ -194,16 +195,57 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 			return nil
 		}
 
-		resp, err := r.lvService.CreateLV(ctx, &proto.CreateLVRequest{Name: string(lv.UID), DeviceClass: lv.Spec.DeviceClass, SizeGb: uint64(reqBytes >> 30)})
-		if err != nil {
-			code, message := extractFromError(err)
-			log.Error(err, message)
-			lv.Status.Code = code
-			lv.Status.Message = message
-			return err
+		var volume *proto.LogicalVolume
+		var volumeMode string
+		var fsType string
+		// Create a snapshot LV
+		if lv.Spec.Snapshot.DataSource != "" {
+			switch lv.Spec.Snapshot.AccessType {
+			case "ro":
+			case "rw":
+				volumeMode = lv.Spec.VolumeInfo.VolumeMode
+				fsType = lv.Spec.VolumeInfo.FsType
+			default:
+				return fmt.Errorf("invalid access type for source volume: %s", lv.Spec.Snapshot.AccessType)
+
+			}
+			// Create a snapshot lv
+			resp, err := r.lvService.CreateLVSnapshot(ctx, &proto.CreateLVSnapshotRequest{
+				Name:         string(lv.UID),
+				DeviceClass:  lv.Spec.DeviceClass,
+				Sourcevolume: lv.Spec.Snapshot.DataSource,
+				SizeGb:       uint64(reqBytes >> 30),
+				AccessType:   lv.Spec.Snapshot.AccessType,
+				SnapType:     lv.Spec.Snapshot.Type,
+				VolumeMode:   volumeMode,
+				FsType:       fsType,
+			})
+			if err != nil {
+				code, message := extractFromError(err)
+				log.Error(err, message)
+				lv.Status.Code = code
+				lv.Status.Message = message
+				return err
+			}
+			volume = resp.Snap
+		} else {
+			// Create a regular lv
+			resp, err := r.lvService.CreateLV(ctx, &proto.CreateLVRequest{
+				Name:        string(lv.UID),
+				DeviceClass: lv.Spec.DeviceClass,
+				SizeGb:      uint64(reqBytes >> 30),
+			})
+			if err != nil {
+				code, message := extractFromError(err)
+				log.Error(err, message)
+				lv.Status.Code = code
+				lv.Status.Message = message
+				return err
+			}
+			volume = resp.Volume
 		}
 
-		lv.Status.VolumeID = resp.Volume.Name
+		lv.Status.VolumeID = volume.Name
 		lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 		lv.Status.Code = codes.OK
 		lv.Status.Message = ""
