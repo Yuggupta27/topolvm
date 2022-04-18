@@ -42,6 +42,34 @@ spec:
                     - type: string
                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                   x-kubernetes-int-or-string: true
+                snapshot:
+                  description: SnapshotSpec defines is a logical volume snapshot.
+                  properties:
+                    accessType:
+                      description: '''accessType'' specifies how the user intents to consume the thin-snapshot logical volume.'
+                      type: string
+                    dataSource:
+                      description: '''dataSource'' specifies the volumeID of the parent logical volume.'
+                      type: string
+                    type:
+                      description: '''type'' specifies if the snapshot will be thick or thin provisioned.'
+                      type: string
+                  required:
+                    - accessType
+                    - dataSource
+                    - type
+                  type: object
+                volumeInfo:
+                  description: VolumeInfoSpec specifies volume specific information corresponding to a logical volume.
+                  properties:
+                    fsType:
+                      type: string
+                    volumeMode:
+                      type: string
+                  required:
+                    - fsType
+                    - volumeMode
+                  type: object
               required:
                 - name
                 - nodeName
