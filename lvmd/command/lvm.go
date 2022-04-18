@@ -644,14 +644,100 @@ func (l *LogicalVolume) Snapshot(name string, cowSize uint64) (*LogicalVolume, e
 
 	var lvcreateArgs []string
 	if _, err := os.Stat("/run/systemd/system"); err != nil {
-		lvcreateArgs = []string{"-s", "-n", name, l.fullname}
+		lvcreateArgs = []string{"--type", "thin", "-s", "-n", name, l.fullname}
 	} else {
-		lvcreateArgs = []string{"-s", "-k", "n", "-n", name, l.fullname}
+		lvcreateArgs = []string{"--type", "thin", "-s", "-k", "n", "-n", name, l.fullname}
 	}
 	if err := CallLVM("lvcreate", lvcreateArgs...); err != nil {
 		return nil, err
 	}
 	return l.vg.FindVolume(name)
+}
+
+// Activate activates the logical volume for desired access.
+func (l *LogicalVolume) Activate(access string) error {
+	var lvchangeArgs []string
+	switch access {
+	case "ro":
+		lvchangeArgs = []string{"-p", "r", l.path}
+	case "rw":
+		lvchangeArgs = []string{"-a", "y", l.path}
+	default:
+		return fmt.Errorf("unknown access: %s for LogicalVolume %s", access, l.fullname)
+	}
+	if err := CallLVM("lvchange", lvchangeArgs...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Call(cmd string, args ...string) error {
+	c := wrapExecCommand(cmd, args...)
+	log.Info("invoking command", map[string]interface{}{
+		"cmd":  cmd,
+		"args": args,
+	})
+	c.Stderr = os.Stderr
+	return c.Run()
+}
+
+func (l *LogicalVolume) UpdateFSUUID(volumeMode, fsType string) error {
+	var err error
+	if volumeMode == "Filesystem" {
+		if fsType == "" {
+			fsType = "ext4"
+		}
+		switch fsType {
+		case "xfs":
+			dirIsCreate := false
+			mounted := false
+			mountDir := fmt.Sprintf("/tmp/%s", l.name)
+
+			defer func() {
+				if err != nil {
+					if mounted {
+						Call("umount", mountDir)
+					}
+
+					if dirIsCreate {
+						Call("rm", "-rf", mountDir)
+					}
+				}
+			}()
+
+			err = Call("mkdir", "-p", mountDir)
+			if err != nil {
+				return err
+			}
+			dirIsCreate = true
+
+			// mount to replay log
+			err = Call("mount", l.path, "-o", "nouuid", mountDir)
+			if err != nil {
+				return err
+			}
+			mounted = true
+
+			err = Call("umount", mountDir)
+			if err != nil {
+				return err
+			}
+			mounted = false
+
+			err = Call("rm", "-rf", mountDir)
+			if err != nil {
+				return err
+			}
+			dirIsCreate = false
+
+			return Call("xfs_admin", "-U", "generate", l.path)
+		case "ext4":
+		default:
+			return fmt.Errorf("unsuport filesystem type: %s", fsType)
+		}
+	}
+
+	return nil
 }
 
 // Resize this volume.
