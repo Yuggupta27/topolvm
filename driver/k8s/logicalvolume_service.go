@@ -254,6 +254,75 @@ func (s *LogicalVolumeService) DeleteVolume(ctx context.Context, volumeID string
 	}
 }
 
+// CreateSnapshot creates a snapshot of existing volume.
+func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, sourceVol *topolvmv1.LogicalVolume, sourceVolID, sname, snapType, accessType string) (string, error) {
+	logger.Info("CreateSnapshot called", "name", sname)
+	snapshotLV := &topolvmv1.LogicalVolume{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "LogicalVolume",
+			APIVersion: "topolvm.cybozu.com/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: sname,
+		},
+		Spec: topolvmv1.LogicalVolumeSpec{
+			Name:        sname,
+			NodeName:    sourceVol.Spec.NodeName,
+			DeviceClass: sourceVol.Spec.DeviceClass,
+			Snapshot: topolvmv1.SnapshotSpec{
+				Type:       snapType,
+				DataSource: sourceVol.Status.VolumeID,
+				AccessType: accessType,
+			},
+		},
+	}
+
+	existingSnapshot := new(topolvmv1.LogicalVolume)
+	err := s.getter.Get(ctx, client.ObjectKey{Name: sname}, existingSnapshot)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return "", err
+		}
+		err := s.writer.Create(ctx, snapshotLV)
+		if err != nil {
+			return "", err
+		}
+		logger.Info("created LogicalVolume CR", "name", sname, "snapType", snapshotLV.Spec.Snapshot.Type, "datasource", snapshotLV.Spec.Snapshot.DataSource, "accessType", snapshotLV.Spec.Snapshot.AccessType)
+	} else {
+		if !existingSnapshot.IsCompatibleWith(snapshotLV) || sourceVolID != sourceVol.Status.VolumeID {
+			return "", status.Error(codes.AlreadyExists, "Incompatible LogicalVolume already exists")
+		}
+	}
+
+	for {
+		logger.Info("waiting for setting 'status.volumeID'", "name", sname)
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		var newLV topolvmv1.LogicalVolume
+		err := s.getter.Get(ctx, client.ObjectKey{Name: sname}, &newLV)
+		if err != nil {
+			logger.Error(err, "failed to get LogicalVolume", "name", sname)
+			return "", err
+		}
+		if newLV.Status.VolumeID != "" {
+			logger.Info("end k8s.LogicalVolume", "volume_id", newLV.Status.VolumeID)
+			return newLV.Status.VolumeID, nil
+		}
+		if newLV.Status.Code != codes.OK {
+			err := s.writer.Delete(ctx, &newLV)
+			if err != nil {
+				// log this error but do not return this error, because newLV.Status.Message is more important
+				logger.Error(err, "failed to delete LogicalVolume")
+			}
+			return "", status.Error(newLV.Status.Code, newLV.Status.Message)
+		}
+	}
+}
+
 func (s *LogicalVolumeService) ValidateContentSource(ctx context.Context, req *csi.CreateVolumeRequest) (*topolvmv1.LogicalVolume, string, error) {
 	volumeSource := req.VolumeContentSource
 
