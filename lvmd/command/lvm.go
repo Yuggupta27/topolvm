@@ -654,6 +654,22 @@ func (l *LogicalVolume) Snapshot(name string, cowSize uint64) (*LogicalVolume, e
 	return l.vg.FindVolume(name)
 }
 
+// Activate activates the logical volume for desired access.
+func (l *LogicalVolume) Activate(access string) error {
+	var lvchangeArgs []string
+	switch access {
+	case "ro":
+		lvchangeArgs = []string{"-p", "r", l.path}
+	case "rw":
+		lvchangeArgs = []string{"-a", "y", "-K", l.path}
+	default:
+		return fmt.Errorf("unknown access: %s for LogicalVolume %s", access, l.fullname)
+	}
+	err := CallLVM("lvchange", lvchangeArgs...)
+
+	return err
+}
+
 // Resize this volume.
 // newSize is a new size of this volume in bytes.
 func (l *LogicalVolume) Resize(newSize uint64) error {
