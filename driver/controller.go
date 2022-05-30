@@ -48,9 +48,10 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		"accessibility_requirements", req.GetAccessibilityRequirements().String())
 
 	var (
-		sourceID  string
-		sourceVol *v1.LogicalVolume
-		err       error
+		sourceID   string
+		sourceName string
+		sourceVol  *v1.LogicalVolume
+		err        error
 	)
 
 	if capabilities == nil {
@@ -152,8 +153,9 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if sourceID != "" {
 		node = sourceVol.Spec.NodeName
 		deviceClass = sourceVol.Spec.DeviceClass
+		sourceName = sourceVol.Spec.Name
 	}
-	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceClass, name, sourceID, requestGb)
+	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceClass, name, sourceName, requestGb)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
@@ -253,7 +255,8 @@ func (s controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	node := sourceVol.Spec.NodeName
 	deviceClass := sourceVol.Spec.DeviceClass
 	size := sourceVol.Spec.Size
-	snapshotID, err := s.lvService.CreateSnapshot(ctx, node, deviceClass, sourceVolID, name, snapType, accessType, size)
+	sourceVolName := sourceVol.Spec.Name
+	snapshotID, err := s.lvService.CreateSnapshot(ctx, node, deviceClass, sourceVolName, name, snapType, accessType, size)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {

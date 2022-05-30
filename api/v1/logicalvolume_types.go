@@ -24,9 +24,9 @@ type LogicalVolumeSpec struct {
 	// +kubebuilder:validation:Optional
 	Type string `json:"type"`
 
-	// 'sourceID' specifies the volumeID of the parent logical volume; if present.
+	// 'source' specifies the logicalvolume name of the source; if present.
 	// +kubebuilder:validation:Optional
-	SourceID string `json:"sourceID"`
+	Source string `json:"source"`
 
 	//'accessType' specifies how the user intends to consume the snapshot logical volume.
 	// Allowed values are: "ro" (read-only) and "rw" (read-write).
@@ -64,7 +64,7 @@ func (lv *LogicalVolume) IsCompatibleWith(lv2 *LogicalVolume) bool {
 	if lv.Spec.Name != lv2.Spec.Name {
 		return false
 	}
-	if lv.Spec.SourceID != lv2.Spec.SourceID {
+	if lv.Spec.Source != lv2.Spec.Source {
 		return false
 	}
 	if lv.Spec.Size.Cmp(lv2.Spec.Size) != 0 {

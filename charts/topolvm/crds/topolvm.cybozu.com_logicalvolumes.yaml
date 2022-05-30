@@ -45,8 +45,8 @@ spec:
                     - type: string
                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                   x-kubernetes-int-or-string: true
-                sourceID:
-                  description: '''sourceID'' specifies the volumeID of the parent logical volume; if present.'
+                source:
+                  description: '''source'' specifies the logicalvolume name of the source; if present.'
                   type: string
                 type:
                   description: '''type'' specifies the logical volume type. Can be ''thin-snapshot'' or left empty in case of a regular volume.'

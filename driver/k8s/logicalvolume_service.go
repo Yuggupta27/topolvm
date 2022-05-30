@@ -108,13 +108,13 @@ func NewLogicalVolumeService(mgr manager.Manager) (*LogicalVolumeService, error)
 }
 
 // CreateVolume creates volume
-func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name, parentID string, requestGb int64) (string, error) {
-	logger.Info("k8s.CreateVolume called", "name", name, "node", node, "size_gb", requestGb, "parentID", parentID)
+func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name, sourceName string, requestGb int64) (string, error) {
+	logger.Info("k8s.CreateVolume called", "name", name, "node", node, "size_gb", requestGb, "sourceName", sourceName)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var lv *topolvmv1.LogicalVolume
-	// if the create volume request has no parent, proceed with regular lv creation.
-	if parentID == "" {
+	// if the create volume request has no source, proceed with regular lv creation.
+	if sourceName == "" {
 		lv = &topolvmv1.LogicalVolume{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "LogicalVolume",
@@ -132,7 +132,7 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name,
 		}
 
 	} else {
-		// On the other hand, if a volume has a datasource, create a thin snapshot of the parent volume with READ-WRITE access.
+		// On the other hand, if a volume has a datasource, create a thin snapshot of the source volume with READ-WRITE access.
 		lv = &topolvmv1.LogicalVolume{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "LogicalVolume",
@@ -147,7 +147,7 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name,
 				DeviceClass: dc,
 				Size:        *resource.NewQuantity(requestGb<<30, resource.BinarySI),
 				Type:        "thin-snapshot",
-				SourceID:    parentID,
+				Source:      sourceName,
 				AccessType:  "rw",
 			},
 		}
@@ -164,7 +164,7 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name,
 		if err != nil {
 			return "", err
 		}
-		logger.Info("created LogicalVolume CR", "name", name, "sourceID", lv.Spec.SourceID)
+		logger.Info("created LogicalVolume CR", "name", name, "sourceID", lv.Spec.Source)
 	} else {
 		// LV with same name was found; check compatibility
 		// skip check of capabilities because (1) we allow both of two access types, and (2) we allow only one access mode
@@ -224,7 +224,7 @@ func (s *LogicalVolumeService) DeleteVolume(ctx context.Context, volumeID string
 }
 
 // CreateSnapshot creates a snapshot of existing volume.
-func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, node, dc, sourceVolID, sname, snapType, accessType string, snapSize resource.Quantity) (string, error) {
+func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, node, dc, sourceVol, sname, snapType, accessType string, snapSize resource.Quantity) (string, error) {
 	logger.Info("CreateSnapshot called", "name", sname)
 	snapshotLV := &topolvmv1.LogicalVolume{
 		TypeMeta: metav1.TypeMeta{
@@ -240,7 +240,7 @@ func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, node, dc, sou
 			DeviceClass: dc,
 			Size:        snapSize,
 			Type:        snapType,
-			SourceID:    sourceVolID,
+			Source:      sourceVol,
 			AccessType:  accessType,
 		},
 	}
@@ -255,7 +255,7 @@ func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, node, dc, sou
 		if err != nil {
 			return "", err
 		}
-		logger.Info("created LogicalVolume CR", "name", sname, "snapType", snapshotLV.Spec.Type, "sourceID", snapshotLV.Spec.SourceID, "accessType", snapshotLV.Spec.AccessType)
+		logger.Info("created LogicalVolume CR", "name", sname, "snapType", snapshotLV.Spec.Type, "source", snapshotLV.Spec.Source, "accessType", snapshotLV.Spec.AccessType)
 	} else {
 		if !existingSnapshot.IsCompatibleWith(snapshotLV) {
 			return "", status.Error(codes.AlreadyExists, "Incompatible LogicalVolume already exists")

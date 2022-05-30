@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -198,16 +199,26 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 		var volume *proto.LogicalVolume
 
 		// Create a snapshot LV
-		if lv.Spec.SourceID != "" {
+		if lv.Spec.Source != "" {
 			// accessType should be either "readonly" or "readwrite".
 			if lv.Spec.AccessType != "ro" && lv.Spec.AccessType != "rw" {
 				return fmt.Errorf("invalid access type for source volume: %s", lv.Spec.AccessType)
 			}
+			sourcelv := new(topolvmv1.LogicalVolume)
+			if err := r.Get(ctx, types.NamespacedName{Namespace: lv.Namespace, Name: lv.Spec.Source}, sourcelv); err != nil {
+				if !apierrs.IsNotFound(err) {
+					log.Error(err, "unable to fetch source LogicalVolume")
+					return err
+				}
+				return nil
+			}
+			sourceVolID := sourcelv.Status.VolumeID
+
 			// Create a snapshot lv
 			resp, err := r.lvService.CreateLVSnapshot(ctx, &proto.CreateLVSnapshotRequest{
 				Name:         string(lv.UID),
 				DeviceClass:  lv.Spec.DeviceClass,
-				SourceVolume: lv.Spec.SourceID,
+				SourceVolume: sourceVolID,
 				SizeGb:       uint64(reqBytes >> 30),
 				AccessType:   lv.Spec.AccessType,
 				Type:         lv.Spec.Type,
