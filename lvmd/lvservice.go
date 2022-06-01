@@ -239,9 +239,19 @@ func (s *lvService) CreateLVSnapshot(_ context.Context, req *proto.CreateLVSnaps
 	}
 	// If source volume is thin, activate the thin snapshot lv with accessmode.
 	if err := snapLV.Activate(req.AccessType); err != nil {
-		log.Error("failed to activate snap volume", map[string]interface{}{
+		log.Error("failed to activate snap volume, cleaning volume", map[string]interface{}{
 			log.FnError: err,
 			"name":      req.GetName(),
+		})
+		err := snapLV.Remove()
+		if err != nil {
+			log.Error("failed to remove volume", map[string]interface{}{
+				log.FnError: err,
+				"name":      snapLV.Name(),
+			})
+		}
+		log.Info("removed a LV", map[string]interface{}{
+			"name": req.GetName(),
 		})
 		return nil, status.Error(codes.Internal, err.Error())
 	}
