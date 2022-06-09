@@ -174,22 +174,25 @@ func (s *lvService) RemoveLV(_ context.Context, req *proto.RemoveLVRequest) (*pr
 
 func (s *lvService) CreateLVSnapshot(_ context.Context, req *proto.CreateLVSnapshotRequest) (*proto.CreateLVSnapshotResponse, error) {
 
-	snapType := req.GetType()
-	switch snapType {
-	case "thin-snapshot":
-	case "thick-snapshot":
-		return nil, status.Error(codes.Unimplemented, "thick snapshot is not implemented yet")
-	default:
-		return nil, status.Error(codes.InvalidArgument, "snapshot type is not supported")
-	}
-
+	var snapType string
 	dc, err := s.mapper.DeviceClass(req.DeviceClass)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "%s: %s", err.Error(), req.DeviceClass)
 	}
+
 	if dc.Type != TypeThin {
 		return nil, status.Errorf(codes.InvalidArgument, "device class %s is not thin; thin snapshot creation can be done only in thin device classes", dc.Name)
 	}
+
+	switch dc.Type {
+	case TypeThin:
+		snapType = "thin-snapshot"
+	case TypeThick:
+		return nil, status.Error(codes.Unimplemented, "thick snapshots are not implemented yet")
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "invalid device class type %v", string(dc.Type))
+	}
+
 	vg, err := command.FindVolumeGroup(dc.VolumeGroup)
 	if err != nil {
 		return nil, err
@@ -229,7 +232,7 @@ func (s *lvService) CreateLVSnapshot(_ context.Context, req *proto.CreateLVSnaps
 		"accessType": req.GetAccessType(),
 	})
 	// Create snapshot lv
-	snapLV, err := sourceLV.Snapshot(req.GetName(), requested)
+	snapLV, err := sourceLV.Snapshot(req.GetName(), requested, req.GetTags())
 	if err != nil {
 		log.Error("failed to create snapshot volume", map[string]interface{}{
 			log.FnError: err,

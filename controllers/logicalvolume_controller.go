@@ -221,7 +221,6 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 				SourceVolume: sourceVolID,
 				SizeGb:       uint64(reqBytes >> 30),
 				AccessType:   lv.Spec.AccessType,
-				Type:         lv.Spec.Type,
 			})
 			if err != nil {
 				code, message := extractFromError(err)

@@ -19,11 +19,6 @@ type LogicalVolumeSpec struct {
 	Size        resource.Quantity `json:"size"`
 	DeviceClass string            `json:"deviceClass,omitempty"`
 
-	// 'type' specifies the logical volume type.
-	// Can be 'thin-snapshot' or left empty in case of a regular volume.
-	// +kubebuilder:validation:Optional
-	Type string `json:"type"`
-
 	// 'source' specifies the logicalvolume name of the source; if present.
 	// +kubebuilder:validation:Optional
 	Source string `json:"source"`

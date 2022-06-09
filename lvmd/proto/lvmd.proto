@@ -47,7 +47,6 @@ message CreateLVSnapshotRequest {
     string source_volume = 4;     // Source lv of snapshot.
     uint64 size_gb = 5;           // Volume size in GiB.
     string access_type = 6;       // Access type of snapshot
-    string type    = 7;      // Snapshot type; can be thick or thin.
 }
 
 message CreateLVSnapshotResponse {

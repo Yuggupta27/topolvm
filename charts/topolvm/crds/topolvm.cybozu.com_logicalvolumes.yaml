@@ -48,9 +48,6 @@ spec:
                 source:
                   description: '''source'' specifies the logicalvolume name of the source; if present.'
                   type: string
-                type:
-                  description: '''type'' specifies the logical volume type. Can be ''thin-snapshot'' or left empty in case of a regular volume.'
-                  type: string
               required:
                 - name
                 - nodeName

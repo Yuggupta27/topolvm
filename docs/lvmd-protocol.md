@@ -85,7 +85,6 @@ Represents the response of CreateLV.
 | source_volume | [string](#string) |  | Source lv of snapshot. |
 | size_gb | [uint64](#uint64) |  | Volume size in GiB. |
 | access_type | [string](#string) |  | Access type of snapshot |
-| type | [string](#string) |  | Snapshot type; can be thick or thin. |
 
 
 

@@ -146,7 +146,6 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name,
 				NodeName:    node,
 				DeviceClass: dc,
 				Size:        *resource.NewQuantity(requestGb<<30, resource.BinarySI),
-				Type:        "thin-snapshot",
 				Source:      sourceName,
 				AccessType:  "rw",
 			},
@@ -239,7 +238,6 @@ func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, node, dc, sou
 			NodeName:    node,
 			DeviceClass: dc,
 			Size:        snapSize,
-			Type:        snapType,
 			Source:      sourceVol,
 			AccessType:  accessType,
 		},
@@ -255,7 +253,7 @@ func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, node, dc, sou
 		if err != nil {
 			return "", err
 		}
-		logger.Info("created LogicalVolume CR", "name", sname, "snapType", snapshotLV.Spec.Type, "source", snapshotLV.Spec.Source, "accessType", snapshotLV.Spec.AccessType)
+		logger.Info("created LogicalVolume CR", "name", sname, "source", snapshotLV.Spec.Source, "accessType", snapshotLV.Spec.AccessType)
 	} else {
 		if !existingSnapshot.IsCompatibleWith(snapshotLV) {
 			return "", status.Error(codes.AlreadyExists, "Incompatible LogicalVolume already exists")
