@@ -135,6 +135,21 @@ func testNode() {
 		}
 		Expect(foundSize).Should(BeTrue())
 
+		var thinPoolNames []string
+		for _, family := range metricFamilies {
+			if family.GetName() == "topolvm_thinpool_size_bytes" {
+			OUTER:
+				for _, m := range family.Metric {
+					for _, label := range m.Label {
+						if *label.Name == "device_class" {
+							thinPoolNames = append(thinPoolNames, *label.Value)
+							break OUTER
+						}
+					}
+				}
+			}
+		}
+
 		found := false
 		for _, family := range metricFamilies {
 			if family.GetName() != "topolvm_volumegroup_available_bytes" {
@@ -162,6 +177,19 @@ func testNode() {
 				if dc == topolvm.DefaultDeviceClassAnnotationName {
 					continue
 				}
+
+				isThinPool := false
+				for _, name := range thinPoolNames {
+					if dc == name {
+						isThinPool = true
+						break
+					}
+				}
+
+				if isThinPool {
+					continue
+				}
+
 				expected, err := strconv.ParseFloat(v, 64)
 				Expect(err).ShouldNot(HaveOccurred())
 

@@ -39,6 +39,9 @@ func testSanity() {
 		}).Should(Succeed())
 	})
 
+	testParam := make(map[string]string)
+	testParam["topolvm.cybozu.com/device-class"] = "ssd-thin"
+
 	tc := sanity.NewTestConfig()
 	tc.Address = path.Join(baseDir, "/node/csi-topolvm.sock")
 	tc.ControllerAddress = path.Join(baseDir, "/controller/csi-topolvm.sock")
@@ -46,6 +49,7 @@ func testSanity() {
 	tc.StagingPath = path.Join(baseDir, "/node/stagingdir")
 	tc.TestVolumeSize = 1073741824
 	tc.IDGen = &sanity.DefaultIDGenerator{}
+	tc.TestVolumeParameters = testParam
 	tc.CheckPath = func(path string) (sanity.PathKind, error) {
 		_, _, err := kubectl("exec", "-n", "topolvm-system", "daemonset/topolvm-node", "--", "test", "-f", path)
 		if err == nil {

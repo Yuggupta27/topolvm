@@ -12,3 +12,9 @@ device-classes:
     spare-gb: 1
     lvcreate-options:
       - "--type=raid1"
+  - name: "ssd-thin"
+    volume-group: "node2-myvg1"
+    type: thin
+    thin-pool:
+      name: "thinpool"
+      overprovision-ratio: 50.0

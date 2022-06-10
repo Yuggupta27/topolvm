@@ -117,6 +117,7 @@ start-lvmd:
 		$(SUDO) vgcreate -y node$${i}-myvg1 $$($(SUDO) losetup -j $(BACKING_STORE)/backing_store$${i}_1 | cut -d: -f1); \
 		$(SUDO) lvcreate -y -n csi-node-test-block -L 1G node$${i}-myvg1; \
 		$(SUDO) lvcreate -y -n csi-node-test-fs -L 1G node$${i}-myvg1; \
+		$(SUDO) lvcreate -T node$${i}-myvg1/thinpool -L 5G; \
 	done
 
 	# Create additional Volume Groups
@@ -137,6 +138,13 @@ start-lvmd:
 		$(SUDO) vgcreate -y node$${i}-myvg3 $$($(SUDO) losetup -j $(BACKING_STORE)/backing_store$${i}_3 | cut -d: -f1) \
 			$$($(SUDO) losetup -j $(BACKING_STORE)/backing_store$${i}_4 | cut -d: -f1); \
 	done
+
+	# # Create additional Volume Groups
+	# for i in $$(seq 3); do \
+	# 	truncate --size=10G $(BACKING_STORE)/backing_store$${i}_6; \
+	# 	$(SUDO) losetup -f $(BACKING_STORE)/backing_store$${i}_6 ; \
+	# 	$(SUDO) vgcreate -y node$${i}-myvg6 $$($(SUDO) losetup -j $(BACKING_STORE)/backing_store$${i}_6 | cut -d: -f1); \
+	# done
 
 	for i in $$(seq 3); do \
 		$(SUDO) systemd-run --unit=lvmd$$i.service $(shell pwd)/build/lvmd --config=$(shell pwd)/lvmd$$i.yaml; \
