@@ -112,17 +112,17 @@ start-lvmd:
 	for i in $$(seq 3); do \
 		mkdir -p /tmp/topolvm/worker$$i; \
 		mkdir -p /tmp/topolvm/lvmd$$i; \
-		truncate --size=20G $(BACKING_STORE)/backing_store$${i}_1; \
+		truncate --size=5G $(BACKING_STORE)/backing_store$${i}_1; \
 		$(SUDO) losetup -f $(BACKING_STORE)/backing_store$${i}_1; \
 		$(SUDO) vgcreate -y node$${i}-myvg1 $$($(SUDO) losetup -j $(BACKING_STORE)/backing_store$${i}_1 | cut -d: -f1); \
 		$(SUDO) lvcreate -y -n csi-node-test-block -L 1G node$${i}-myvg1; \
 		$(SUDO) lvcreate -y -n csi-node-test-fs -L 1G node$${i}-myvg1; \
-		$(SUDO) lvcreate -T node$${i}-myvg1/thinpool -L 5G; \
+		$(SUDO) lvcreate -T node$${i}-myvg1/thinpool -L 2G; \
 	done
 
 	# Create additional Volume Groups
 	for i in $$(seq 3); do \
-		truncate --size=10G $(BACKING_STORE)/backing_store$${i}_2; \
+		truncate --size=1G $(BACKING_STORE)/backing_store$${i}_2; \
 		$(SUDO) losetup -f $(BACKING_STORE)/backing_store$${i}_2; \
 		$(SUDO) vgcreate -y node$${i}-myvg2 $$($(SUDO) losetup -j $(BACKING_STORE)/backing_store$${i}_2 | cut -d: -f1); \
 	done
@@ -131,8 +131,8 @@ start-lvmd:
 	# This requires 2 PVs in each VG.
 	# node{i}-myvg3: backing_store{i}_3, backing_store{i}_4
 	for i in $$(seq 3); do \
-		truncate --size=3G $(BACKING_STORE)/backing_store$${i}_3; \
-		truncate --size=3G $(BACKING_STORE)/backing_store$${i}_4; \
+		truncate --size=1G $(BACKING_STORE)/backing_store$${i}_3; \
+		truncate --size=1G $(BACKING_STORE)/backing_store$${i}_4; \
 		$(SUDO) losetup -f $(BACKING_STORE)/backing_store$${i}_3; \
 		$(SUDO) losetup -f $(BACKING_STORE)/backing_store$${i}_4; \
 		$(SUDO) vgcreate -y node$${i}-myvg3 $$($(SUDO) losetup -j $(BACKING_STORE)/backing_store$${i}_3 | cut -d: -f1) \
@@ -141,7 +141,7 @@ start-lvmd:
 
 	# # Create additional Volume Groups
 	# for i in $$(seq 3); do \
-	# 	truncate --size=10G $(BACKING_STORE)/backing_store$${i}_6; \
+	# 	truncate --size=1G $(BACKING_STORE)/backing_store$${i}_6; \
 	# 	$(SUDO) losetup -f $(BACKING_STORE)/backing_store$${i}_6 ; \
 	# 	$(SUDO) vgcreate -y node$${i}-myvg6 $$($(SUDO) losetup -j $(BACKING_STORE)/backing_store$${i}_6 | cut -d: -f1); \
 	# done
