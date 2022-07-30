@@ -56,7 +56,7 @@ func testPVCClone() {
 		stdout, stderr, err = kubectlWithInput(thinPVCCloneYAML, "apply", "-n", nsCloneTest, "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
-		thinPodCloneYAML := []byte(fmt.Sprintf(thinPodCloneTemplateYAML, thinClonePVCName, "thinvol"))
+		thinPodCloneYAML := []byte(fmt.Sprintf(thinPodCloneTemplateYAML, "thin-clone-pod", thinClonePVCName))
 		stdout, stderr, err = kubectlWithInput(thinPodCloneYAML, "apply", "-n", nsCloneTest, "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
