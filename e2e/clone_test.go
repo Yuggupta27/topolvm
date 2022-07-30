@@ -108,7 +108,19 @@ func testPVCClone() {
 		thinPodYAML := []byte(fmt.Sprintf(thinPodTemplateYAML, "thinpod", volName, nodeName))
 		stdout, stderr, err = kubectlWithInput(thinPodYAML, "apply", "-n", nsCloneTest, "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		Eventually(func() error {
+			stdout, stderr, err = kubectl("get", "pvc", volName, "-n", nsCloneTest)
+			if err != nil {
+				return fmt.Errorf("failed to create PVC. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
 
+			stdout, stderr, err = kubectl("get", "pods", "thinpod", "-n", nsCloneTest)
+			if err != nil {
+				return fmt.Errorf("failed to create Pod. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+
+			return nil
+		}).Should(Succeed())
 		By("creating clone of PVC")
 		thinPVCCloneYAML := []byte(fmt.Sprintf(thinPvcCloneTemplateYAML, thinClonePVCName, "thinvol", pvcSize))
 		stdout, stderr, err = kubectlWithInput(thinPVCCloneYAML, "apply", "-n", nsCloneTest, "-f", "-")
@@ -117,7 +129,19 @@ func testPVCClone() {
 		thinPodCloneYAML := []byte(fmt.Sprintf(thinPodCloneTemplateYAML, "thin-clone-pod", thinClonePVCName))
 		stdout, stderr, err = kubectlWithInput(thinPodCloneYAML, "apply", "-n", nsCloneTest, "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		Eventually(func() error {
 
+			stdout, stderr, err = kubectl("get", "pvc", thinClonePVCName, "-n", nsCloneTest)
+			if err != nil {
+				return fmt.Errorf("failed to create PVC. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+
+			stdout, stderr, err = kubectl("get", "pods", "thin-clone-pod", "-n", nsCloneTest)
+			if err != nil {
+				return fmt.Errorf("failed to create Pod. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+			return nil
+		}).Should(Succeed())
 		// delete the source PVC and application
 		// thinPvcYAML := []byte(fmt.Sprintf(thinPVCTemplateYAML, volName, pvcSize))
 		By("deleting the source PVC and application")
