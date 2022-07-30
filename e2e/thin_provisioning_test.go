@@ -25,9 +25,9 @@ var thinPVCTemplateYAML string
 func testThinProvisioning() {
 	testNamespacePrefix := "thinptest-"
 	var ns string
-	var cc CleanupContext
+	// var cc CleanupContext
 	BeforeEach(func() {
-		cc = commonBeforeEach()
+		// cc = commonBeforeEach()
 		ns = testNamespacePrefix + randomString(10)
 		createNamespace(ns)
 	})
@@ -37,7 +37,7 @@ func testThinProvisioning() {
 		if !CurrentGinkgoTestDescription().Failed {
 			kubectl("delete", "namespaces/"+ns)
 		}
-		commonAfterEach(cc)
+		// commonAfterEach(cc)
 	})
 
 	It("should thin provision a PV", func() {
