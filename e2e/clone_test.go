@@ -25,13 +25,16 @@ const (
 
 func testPVCClone() {
 	// testNamespace
-	var cc CleanupContext
+	// var cc CleanupContext
 	BeforeEach(func() {
-		cc = commonBeforeEach()
+		// cc = commonBeforeEach()
 		createNamespace(nsCloneTest)
 	})
 	AfterEach(func() {
-		commonAfterEach(cc)
+		if !CurrentGinkgoTestDescription().Failed {
+			kubectl("delete", "namespaces/"+nsCloneTest)
+		}
+		//commonAfterEach(cc)
 	})
 
 	It("should create a PVC Clone", func() {
