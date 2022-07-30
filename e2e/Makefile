@@ -171,7 +171,8 @@ stop-lvmd:
 	done
 
 .PHONY: create-cluster
-create-cluster: topolvm.img
+create-cluster:
+# topolvm.img
 	$(MAKE) shutdown-kind
 	$(MAKE) launch-kind
 	$(MAKE) apply-certmanager
@@ -195,7 +196,7 @@ test: create-cluster
 .PHONY: clean
 clean: stop-lvmd
 	rm -rf \
-		topolvm.img \
+		# topolvm.img \
 		build/ \
 		tmpbin/ \
 		/tmp/topolvm/scheduler/scheduler-config.yaml
