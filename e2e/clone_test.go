@@ -144,13 +144,13 @@ func testPVCClone() {
 		}).Should(Succeed())
 		// delete the source PVC and application
 		// thinPvcYAML := []byte(fmt.Sprintf(thinPVCTemplateYAML, volName, pvcSize))
-		By("deleting the source PVC and application")
-		stdout, stderr, err = kubectlWithInput(thinPvcYAML, "delete", "-n", nsCloneTest, "-f", "-")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		// By("deleting the source PVC and application")
+		// stdout, stderr, err = kubectlWithInput(thinPvcYAML, "delete", "-n", nsCloneTest, "-f", "-")
+		// Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
-		//thinPodYAML := []byte(fmt.Sprintf(thinPodTemplateYAML, "thinpod", volName, nodeName))
-		stdout, stderr, err = kubectlWithInput(thinPodYAML, "delete", "-n", nsCloneTest, "-f", "-")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		// //thinPodYAML := []byte(fmt.Sprintf(thinPodTemplateYAML, "thinpod", volName, nodeName))
+		// stdout, stderr, err = kubectlWithInput(thinPodYAML, "delete", "-n", nsCloneTest, "-f", "-")
+		// Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
 		// validate if the cloned volume is present and is not deleted.
 		By("validate if the cloned volume is present and is not deleted")
