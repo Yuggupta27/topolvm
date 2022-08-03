@@ -3,6 +3,6 @@ kind: VolumeSnapshot
 metadata:
   name: %s
 spec:
-  volumeSnapshotClassName: topolvm-snapclass
+  volumeSnapshotClassName: topolvm-provisioner-thin
   source:
     persistentVolumeClaimName: %s
