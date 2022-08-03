@@ -39,16 +39,16 @@ const (
 
 func testSnapRestore() {
 	// testNamespace
-	var cc CleanupContext
+	// var cc CleanupContext
 	BeforeEach(func() {
-		cc = commonBeforeEach()
+		// cc = commonBeforeEach()
 		createNamespace(nsSnapTest)
 	})
 	AfterEach(func() {
 		if !CurrentGinkgoTestDescription().Failed {
 			kubectl("delete", "namespaces/"+nsSnapTest)
 		}
-		commonAfterEach(cc)
+		// commonAfterEach(cc)
 	})
 
 	It("should create a thin-snapshot", func() {
