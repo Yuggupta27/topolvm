@@ -190,12 +190,12 @@ func testSnapRestore() {
 
 		// delete the source PVC as well as the snapshot
 		By("deleting source volume and snapshot")
-		thinPvcYAML = []byte(fmt.Sprintf(thinPVCTemplateYAML, volName, pvcSize))
-		stdout, stderr, err = kubectlWithInput(thinPvcYAML, "delete", "-n", nsSnapTest, "-f", "-")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
-
 		thinPodYAML = []byte(fmt.Sprintf(thinPodTemplateYAML, "thinpod", volName, nodeName))
 		stdout, stderr, err = kubectlWithInput(thinPodYAML, "delete", "-n", nsSnapTest, "-f", "-")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+
+		thinPvcYAML = []byte(fmt.Sprintf(thinPVCTemplateYAML, volName, pvcSize))
+		stdout, stderr, err = kubectlWithInput(thinPvcYAML, "delete", "-n", nsSnapTest, "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
 		thinSnapshotYAML = []byte(fmt.Sprintf(thinSnapshotTemplateYAML, snapName, volName))
