@@ -80,42 +80,42 @@ func testSnapRestore() {
 		By("confirming that the lv was created in the thin volume group and pool")
 		//var bound bool
 
+		// Eventually(func() error {
+		//bound, err = getSnapshotStatus(snapName, nsSnapTest)
+		// if !bound {
+		// 	return fmt.Errorf("the snapshot %s failed to reach status BOUND", snapName)
+		// }
+
+		thinPVCRestoreYAML := []byte(fmt.Sprintf(thinRestorePVCTemplateYAML, restorePVCName, pvcSize, snapName))
+		stdout, stderr, err = kubectlWithInput(thinPVCRestoreYAML, "apply", "-n", nsSnapTest, "-f", "-")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+
+		thinPVCRestorePodYAML := []byte(fmt.Sprintf(thinRestorePodTemplateYAML, "thin-restore-pod", restorePVCName, nodeName))
+		stdout, stderr, err = kubectlWithInput(thinPVCRestorePodYAML, "apply", "-n", nsSnapTest, "-f", "-")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+
 		Eventually(func() error {
-			//bound, err = getSnapshotStatus(snapName, nsSnapTest)
-			// if !bound {
-			// 	return fmt.Errorf("the snapshot %s failed to reach status BOUND", snapName)
-			// }
-
-			thinPVCRestoreYAML := []byte(fmt.Sprintf(thinRestorePVCTemplateYAML, restorePVCName, pvcSize, snapName))
-			stdout, stderr, err := kubectlWithInput(thinPVCRestoreYAML, "apply", "-n", nsSnapTest, "-f", "-")
-			Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
-
-			thinPVCRestorePodYAML := []byte(fmt.Sprintf(thinRestorePodTemplateYAML, "thin-restore-pod", restorePVCName, nodeName))
-			stdout, stderr, err = kubectlWithInput(thinPVCRestorePodYAML, "apply", "-n", nsSnapTest, "-f", "-")
-			Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
-
-			Eventually(func() error {
-				volumeName, err = getVolumeNameofPVC(restorePVCName, nsSnapTest)
-				return err
-			}).Should(Succeed())
-
-			var lv *thinlvinfo
-			Eventually(func() error {
-				lv, err = getThinLVInfo(volumeName)
-				return err
-			}).Should(Succeed())
-
-			vgName := "node1-myvg4"
-			if isDaemonsetLvmdEnvSet() {
-				vgName = "node-myvg5"
-			}
-			Expect(vgName).Should(Equal(lv.vgName))
-
-			poolName := "pool0"
-			Expect(poolName).Should(Equal(lv.poolName))
-
+			volumeName, err = getVolumeNameofPVC(restorePVCName, nsSnapTest)
 			return err
 		}).Should(Succeed())
+
+		var lv *thinlvinfo
+		Eventually(func() error {
+			lv, err = getThinLVInfo(volumeName)
+			return err
+		}).Should(Succeed())
+
+		vgName := "node1-myvg4"
+		if isDaemonsetLvmdEnvSet() {
+			vgName = "node-myvg5"
+		}
+		Expect(vgName).Should(Equal(lv.vgName))
+
+		poolName := "pool0"
+		Expect(poolName).Should(Equal(lv.poolName))
+
+		// 	return err
+		// }).Should(Succeed())
 
 	})
 
