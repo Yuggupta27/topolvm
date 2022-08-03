@@ -65,30 +65,30 @@ func testPVCClone() {
 
 		By("confirming that the lv for cloned volume was created in the thin volume group and pool")
 
+		// Eventually(func() error {
+
 		Eventually(func() error {
-
-			Eventually(func() error {
-				volumeName, err = getVolumeNameofPVC(thinClonePVCName, nsCloneTest)
-				return err
-			}).Should(Succeed())
-
-			var lv *thinlvinfo
-			Eventually(func() error {
-				lv, err = getThinLVInfo(volumeName)
-				return err
-			}).Should(Succeed())
-
-			vgName := "node1-myvg4"
-			if isDaemonsetLvmdEnvSet() {
-				vgName = "node-myvg5"
-			}
-			Expect(vgName).Should(Equal(lv.vgName))
-
-			poolName := "pool0"
-			Expect(poolName).Should(Equal(lv.poolName))
-
+			volumeName, err = getVolumeNameofPVC(thinClonePVCName, nsCloneTest)
 			return err
 		}).Should(Succeed())
+
+		var lv *thinlvinfo
+		Eventually(func() error {
+			lv, err = getThinLVInfo(volumeName)
+			return err
+		}).Should(Succeed())
+
+		vgName := "node1-myvg4"
+		if isDaemonsetLvmdEnvSet() {
+			vgName = "node-myvg5"
+		}
+		Expect(vgName).Should(Equal(lv.vgName))
+
+		poolName := "pool0"
+		Expect(poolName).Should(Equal(lv.poolName))
+
+		// 	return err
+		// }).Should(Succeed())
 
 	})
 
