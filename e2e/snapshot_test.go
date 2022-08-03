@@ -119,52 +119,52 @@ func testSnapRestore() {
 
 	})
 
-	It("validate if the restored PVCs are standalone", func() {
-		By("deleting the source PVC")
+	// It("validate if the restored PVCs are standalone", func() {
+	// 	By("deleting the source PVC")
 
-		nodeName := "topolvm-e2e-worker"
-		if isDaemonsetLvmdEnvSet() {
-			nodeName = getDaemonsetLvmdNodeName()
-		}
+	// 	nodeName := "topolvm-e2e-worker"
+	// 	if isDaemonsetLvmdEnvSet() {
+	// 		nodeName = getDaemonsetLvmdNodeName()
+	// 	}
 
-		var volumeName string
+	// 	var volumeName string
 
-		// delete the source PVC as well as the snapshot
-		thinPvcYAML := []byte(fmt.Sprintf(thinPVCTemplateYAML, volName, pvcSize))
-		stdout, stderr, err := kubectlWithInput(thinPvcYAML, "delete", "-n", nsSnapTest, "-f", "-")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+	// 	// delete the source PVC as well as the snapshot
+	// 	thinPvcYAML := []byte(fmt.Sprintf(thinPVCTemplateYAML, volName, pvcSize))
+	// 	stdout, stderr, err := kubectlWithInput(thinPvcYAML, "delete", "-n", nsSnapTest, "-f", "-")
+	// 	Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
-		thinPodYAML := []byte(fmt.Sprintf(thinPodTemplateYAML, "thinpod", volName, nodeName))
-		stdout, stderr, err = kubectlWithInput(thinPodYAML, "delete", "-n", nsSnapTest, "-f", "-")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+	// 	thinPodYAML := []byte(fmt.Sprintf(thinPodTemplateYAML, "thinpod", volName, nodeName))
+	// 	stdout, stderr, err = kubectlWithInput(thinPodYAML, "delete", "-n", nsSnapTest, "-f", "-")
+	// 	Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
-		thinSnapshotYAML := []byte(fmt.Sprintf(thinSnapshotTemplateYAML, snapName, volName))
-		stdout, stderr, err = kubectlWithInput(thinSnapshotYAML, "delete", "-n", nsSnapTest, "-f", "-")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+	// 	thinSnapshotYAML := []byte(fmt.Sprintf(thinSnapshotTemplateYAML, snapName, volName))
+	// 	stdout, stderr, err = kubectlWithInput(thinSnapshotYAML, "delete", "-n", nsSnapTest, "-f", "-")
+	// 	Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
-		// validate if the restored volume is present and is not deleted.
+	// 	// validate if the restored volume is present and is not deleted.
 
-		Eventually(func() error {
-			volumeName, err = getVolumeNameofPVC(restorePVCName, nsSnapTest)
-			return err
-		}).Should(Succeed())
+	// 	Eventually(func() error {
+	// 		volumeName, err = getVolumeNameofPVC(restorePVCName, nsSnapTest)
+	// 		return err
+	// 	}).Should(Succeed())
 
-		var lv *thinlvinfo
-		Eventually(func() error {
-			lv, err = getThinLVInfo(volumeName)
-			return err
-		}).Should(Succeed())
+	// 	var lv *thinlvinfo
+	// 	Eventually(func() error {
+	// 		lv, err = getThinLVInfo(volumeName)
+	// 		return err
+	// 	}).Should(Succeed())
 
-		vgName := "node1-myvg4"
-		if isDaemonsetLvmdEnvSet() {
-			vgName = "node-myvg5"
-		}
-		Expect(vgName).Should(Equal(lv.vgName))
+	// 	vgName := "node1-myvg4"
+	// 	if isDaemonsetLvmdEnvSet() {
+	// 		vgName = "node-myvg5"
+	// 	}
+	// 	Expect(vgName).Should(Equal(lv.vgName))
 
-		poolName := "pool0"
-		Expect(poolName).Should(Equal(lv.poolName))
+	// 	poolName := "pool0"
+	// 	Expect(poolName).Should(Equal(lv.poolName))
 
-	})
+	// })
 
 }
 

@@ -144,7 +144,7 @@ var _ = Describe("TopoLVM", func() {
 	//Context("e2e", testE2E)
 	//Context("multiple-vg", testMultipleVolumeGroups)
 	//Context("lvcreate-options", testLVCreateOptions)
-	Context("thin-provisioning", testThinProvisioning)
+	// Context("thin-provisioning", testThinProvisioning)
 	Context("snapshot-restore", testSnapRestore)
 	Context("clone", testPVCClone)
 	Context("cleanup", testCleanup)
