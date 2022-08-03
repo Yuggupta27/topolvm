@@ -86,11 +86,11 @@ func testSnapRestore() {
 			// 	return fmt.Errorf("the snapshot %s failed to reach status BOUND", snapName)
 			// }
 
-			thinPVCRestoreYAML := []byte(fmt.Sprintf(thinRestorePVCTemplateYAML, volName, pvcSize, snapName))
+			thinPVCRestoreYAML := []byte(fmt.Sprintf(thinRestorePVCTemplateYAML, restorePVCName, pvcSize, snapName))
 			stdout, stderr, err := kubectlWithInput(thinPVCRestoreYAML, "apply", "-n", nsSnapTest, "-f", "-")
 			Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
-			thinPVCRestorePodYAML := []byte(fmt.Sprintf(thinRestorePodTemplateYAML, "thinpod", volName, nodeName))
+			thinPVCRestorePodYAML := []byte(fmt.Sprintf(thinRestorePodTemplateYAML, "thin-restore-pod", restorePVCName, nodeName))
 			stdout, stderr, err = kubectlWithInput(thinPVCRestorePodYAML, "apply", "-n", nsSnapTest, "-f", "-")
 			Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 

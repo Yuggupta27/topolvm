@@ -93,7 +93,7 @@ func testPVCClone() {
 	})
 
 	It("validate if the cloned PVC is standalone", func() {
-		By("deleting the source PVC")
+		// By("deleting the source PVC")
 
 		nodeName := "topolvm-e2e-worker"
 		if isDaemonsetLvmdEnvSet() {
@@ -126,7 +126,7 @@ func testPVCClone() {
 		stdout, stderr, err = kubectlWithInput(thinPVCCloneYAML, "apply", "-n", nsCloneTest, "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
-		thinPodCloneYAML := []byte(fmt.Sprintf(thinPodCloneTemplateYAML, "thin-clone-pod", thinClonePVCName))
+		thinPodCloneYAML := []byte(fmt.Sprintf(thinPodCloneTemplateYAML, "thin-clone-pod", thinClonePVCName, nodeName))
 		stdout, stderr, err = kubectlWithInput(thinPodCloneYAML, "apply", "-n", nsCloneTest, "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 		Eventually(func() error {
