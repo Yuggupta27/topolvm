@@ -12,9 +12,9 @@ spec:
       volumeMounts:
       - mountPath: /test1
         name: my-volume
-  nodeSelector:
-    topology.topolvm.cybozu.com/node: %s
   volumes:
     - name: my-volume
       persistentVolumeClaim:
         claimName: %s
+  nodeSelector:
+    topology.topolvm.cybozu.com/node: %s
