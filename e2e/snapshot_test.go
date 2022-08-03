@@ -158,23 +158,9 @@ func testSnapRestore() {
 			return nil
 		}).Should(Succeed())
 
-		By("deleting source volume and snapshot")
-		// delete the source PVC as well as the snapshot
-		thinPvcYAML = []byte(fmt.Sprintf(thinPVCTemplateYAML, volName, pvcSize))
-		stdout, stderr, err = kubectlWithInput(thinPvcYAML, "delete", "-n", nsSnapTest, "-f", "-")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
-
-		thinPodYAML = []byte(fmt.Sprintf(thinPodTemplateYAML, "thinpod", volName, nodeName))
-		stdout, stderr, err = kubectlWithInput(thinPodYAML, "delete", "-n", nsSnapTest, "-f", "-")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
-
-		thinSnapshotYAML = []byte(fmt.Sprintf(thinSnapshotTemplateYAML, snapName, volName))
-		stdout, stderr, err = kubectlWithInput(thinSnapshotYAML, "delete", "-n", nsSnapTest, "-f", "-")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
-
 		// validate if the restored volume is present and is not deleted.
 
-		By("validate if the restored volume is present and is not deleted.")
+		By("validate if the restored volume is present")
 		Eventually(func() error {
 			volumeName, err = getVolumeNameofPVC(restorePVCName, nsSnapTest)
 			return err
@@ -194,6 +180,31 @@ func testSnapRestore() {
 
 		poolName := "pool0"
 		Expect(poolName).Should(Equal(lv.poolName))
+
+		// delete the source PVC as well as the snapshot
+		By("deleting source volume and snapshot")
+		thinPvcYAML = []byte(fmt.Sprintf(thinPVCTemplateYAML, volName, pvcSize))
+		stdout, stderr, err = kubectlWithInput(thinPvcYAML, "delete", "-n", nsSnapTest, "-f", "-")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+
+		thinPodYAML = []byte(fmt.Sprintf(thinPodTemplateYAML, "thinpod", volName, nodeName))
+		stdout, stderr, err = kubectlWithInput(thinPodYAML, "delete", "-n", nsSnapTest, "-f", "-")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+
+		thinSnapshotYAML = []byte(fmt.Sprintf(thinSnapshotTemplateYAML, snapName, volName))
+		stdout, stderr, err = kubectlWithInput(thinSnapshotYAML, "delete", "-n", nsSnapTest, "-f", "-")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+
+		By("validate if the restored volume is present and is not deleted.")
+		Eventually(func() error {
+			volumeName, err = getVolumeNameofPVC(restorePVCName, nsSnapTest)
+			return err
+		}).Should(Succeed())
+
+		Eventually(func() error {
+			lv, err = getThinLVInfo(volumeName)
+			return err
+		}).Should(Succeed())
 
 	})
 
