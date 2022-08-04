@@ -70,13 +70,13 @@ func testSnapRestore() {
 
 		// By("confirming that the lv was created in the thin volume group and pool")
 
-		thinSnapshotClassYAML := []byte(fmt.Sprintf(thinSnapshotClassYAML, "topolvm-provisioner-thin"))
-		stdout, stderr, err = kubectlWithInput(thinSnapshotClassYAML, "apply", "-n", nsSnapTest, "-f", "-")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		// thinSnapshotClassYAML := []byte(fmt.Sprintf(thinSnapshotClassYAML, "topolvm-provisioner-thin"))
+		// stdout, stderr, err = kubectlWithInput(thinSnapshotClassYAML, "apply", "-n", nsSnapTest, "-f", "-")
+		// Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
-		thinSnapshotYAML := []byte(fmt.Sprintf(thinSnapshotTemplateYAML, snapName, "thinvol"))
-		stdout, stderr, err = kubectlWithInput(thinSnapshotYAML, "apply", "-n", nsSnapTest, "-f", "-")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		// thinSnapshotYAML := []byte(fmt.Sprintf(thinSnapshotTemplateYAML, snapName, "thinvol"))
+		// stdout, stderr, err = kubectlWithInput(thinSnapshotYAML, "apply", "-n", nsSnapTest, "-f", "-")
+		// Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
 		//var bound bool
 
@@ -121,6 +121,25 @@ func testSnapRestore() {
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 		Expect(strings.TrimSpace(string(stdout))).ShouldNot(BeEmpty())
 
+		By("creating a snapshot")
+		thinSnapshotClassYAML := []byte(fmt.Sprintf(thinSnapshotClassYAML, "topolvm-provisioner-thin"))
+		stdout, stderr, err = kubectlWithInput(thinSnapshotClassYAML, "apply", "-n", nsSnapTest, "-f", "-")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+
+		thinSnapshotYAML := []byte(fmt.Sprintf(thinSnapshotTemplateYAML, snapName, "thinvol"))
+		stdout, stderr, err = kubectlWithInput(thinSnapshotYAML, "apply", "-n", nsSnapTest, "-f", "-")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+
+		Eventually(func() error {
+			stdout, stderr, err = kubectl("get", "vs", snapName, "-n", nsSnapTest)
+			if err != nil {
+				return fmt.Errorf("failed to create VolumeSnapshot. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+
+			return nil
+		}).Should(Succeed())
+
+		By("restoring the snapshot")
 		thinPVCRestoreYAML := []byte(fmt.Sprintf(thinRestorePVCTemplateYAML, restorePVCName, pvcSize, snapName))
 		stdout, stderr, err = kubectlWithInput(thinPVCRestoreYAML, "apply", "-n", nsSnapTest, "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
