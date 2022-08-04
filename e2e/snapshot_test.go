@@ -107,8 +107,14 @@ func testSnapRestore() {
 
 		By("writing file under /test1")
 		writePath := "/test1/bootstrap.log"
-		stdout, stderr, err = kubectl("exec", "-n", nsSnapTest, "thinpod", "--", "cp", "/var/log/bootstrap.log", writePath)
-		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		Eventually(func() error {
+			stdout, stderr, err = kubectl("exec", "-n", nsSnapTest, "thinpod", "--", "cp", "/var/log/bootstrap.log", writePath)
+			Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+			return nil
+		}).Should(Succeed())
+
+		// stdout, stderr, err = kubectl("exec", "-n", nsSnapTest, "thinpod", "--", "cp", "/var/log/bootstrap.log", writePath)
+		// Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 		stdout, stderr, err = kubectl("exec", "-n", nsSnapTest, "thinpod", "--", "sync")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 		stdout, stderr, err = kubectl("exec", "-n", nsSnapTest, "thinpod", "--", "cat", writePath)
