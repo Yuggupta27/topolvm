@@ -3,6 +3,7 @@ package e2e
 import (
 	_ "embed"
 	"fmt"
+	"strings"
 
 	//  "encoding/json"
 
@@ -77,7 +78,6 @@ func testSnapRestore() {
 		stdout, stderr, err = kubectlWithInput(thinSnapshotYAML, "apply", "-n", nsSnapTest, "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
-		By("confirming that the lv was created in the thin volume group and pool")
 		//var bound bool
 
 		// Eventually(func() error {
@@ -85,6 +85,35 @@ func testSnapRestore() {
 		// if !bound {
 		// 	return fmt.Errorf("the snapshot %s failed to reach status BOUND", snapName)
 		// }
+		By("confirming if the resources have been created")
+		Eventually(func() error {
+			stdout, stderr, err = kubectl("get", "pvc", volName, "-n", nsSnapTest)
+			if err != nil {
+				return fmt.Errorf("failed to create PVC. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+
+			stdout, stderr, err = kubectl("get", "pods", "thinpod", "-n", nsSnapTest)
+			if err != nil {
+				return fmt.Errorf("failed to create Pod. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+
+			stdout, stderr, err = kubectl("get", "vs", snapName, "-n", nsSnapTest)
+			if err != nil {
+				return fmt.Errorf("failed to create VolumeSnapshot. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+
+			return nil
+		}).Should(Succeed())
+
+		By("writing file under /test1")
+		writePath := "/test1/bootstrap.log"
+		stdout, stderr, err = kubectl("exec", "-n", nsSnapTest, "thinpod", "--", "cp", "/var/log/bootstrap.log", writePath)
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		stdout, stderr, err = kubectl("exec", "-n", nsSnapTest, "thinpod", "--", "sync")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		stdout, stderr, err = kubectl("exec", "-n", nsSnapTest, "thinpod", "--", "cat", writePath)
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		Expect(strings.TrimSpace(string(stdout))).ShouldNot(BeEmpty())
 
 		thinPVCRestoreYAML := []byte(fmt.Sprintf(thinRestorePVCTemplateYAML, restorePVCName, pvcSize, snapName))
 		stdout, stderr, err = kubectlWithInput(thinPVCRestoreYAML, "apply", "-n", nsSnapTest, "-f", "-")
@@ -113,9 +142,27 @@ func testSnapRestore() {
 
 		poolName := "pool0"
 		Expect(poolName).Should(Equal(lv.poolName))
+		By("confirming that the file exists")
+		Eventually(func() error {
+			stdout, stderr, err = kubectl("get", "pvc", restorePVCName, "-n", nsSnapTest)
+			if err != nil {
+				return fmt.Errorf("failed to create PVC. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
 
-		// 	return err
-		// }).Should(Succeed())
+			stdout, stderr, err = kubectl("get", "pods", "thin-restore-pod", "-n", nsSnapTest)
+			if err != nil {
+				return fmt.Errorf("failed to create Pod. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+
+			stdout, stderr, err = kubectl("exec", "-n", nsSnapTest, "thin-restore-pod", "--", "cat", writePath)
+			if err != nil {
+				return fmt.Errorf("failed to cat. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+			if len(strings.TrimSpace(string(stdout))) == 0 {
+				return fmt.Errorf(writePath + " is empty")
+			}
+			return nil
+		}).Should(Succeed())
 
 	})
 
