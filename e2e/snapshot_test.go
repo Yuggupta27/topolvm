@@ -97,10 +97,10 @@ func testSnapRestore() {
 				return fmt.Errorf("failed to create Pod. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 			}
 
-			stdout, stderr, err = kubectl("get", "vs", snapName, "-n", nsSnapTest)
-			if err != nil {
-				return fmt.Errorf("failed to create VolumeSnapshot. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-			}
+			// stdout, stderr, err = kubectl("get", "vs", snapName, "-n", nsSnapTest)
+			// if err != nil {
+			// 	return fmt.Errorf("failed to create VolumeSnapshot. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			// }
 
 			return nil
 		}).Should(Succeed())
