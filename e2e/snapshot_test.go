@@ -109,7 +109,7 @@ func testSnapRestore() {
 		writePath := "/test1/bootstrap.log"
 		Eventually(func() error {
 			stdout, stderr, err = kubectl("exec", "-n", nsSnapTest, "thinpod", "--", "cp", "/var/log/bootstrap.log", writePath)
-			Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+			// Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 			return err
 		}).Should(Succeed())
 
