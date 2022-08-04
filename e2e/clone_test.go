@@ -3,6 +3,7 @@ package e2e
 import (
 	_ "embed"
 	"fmt"
+	"strings"
 
 	//	"strconv"
 
@@ -53,7 +54,34 @@ func testPVCClone() {
 		stdout, stderr, err = kubectlWithInput(thinPodYAML, "apply", "-n", nsCloneTest, "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
+		By("confirming if the source PVC and application have been created")
+		Eventually(func() error {
+			stdout, stderr, err = kubectl("get", "pvc", volName, "-n", nsCloneTest)
+			if err != nil {
+				return fmt.Errorf("failed to create PVC. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+
+			stdout, stderr, err = kubectl("get", "pods", "thinpod", "-n", nsCloneTest)
+			if err != nil {
+				return fmt.Errorf("failed to create Pod. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+
+			return nil
+		}).Should(Succeed())
 		// By("confirming that the lv was created in the thin volume group and pool")
+
+		By("writing file under /test1")
+		writePath := "/test1/bootstrap.log"
+		Eventually(func() error {
+			stdout, stderr, err = kubectl("exec", "-n", nsCloneTest, "thinpod", "--", "cp", "/var/log/bootstrap.log", writePath)
+			return err
+		}).Should(Succeed())
+
+		stdout, stderr, err = kubectl("exec", "-n", nsCloneTest, "thinpod", "--", "sync")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		stdout, stderr, err = kubectl("exec", "-n", nsCloneTest, "thinpod", "--", "cat", writePath)
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		Expect(strings.TrimSpace(string(stdout))).ShouldNot(BeEmpty())
 
 		thinPVCCloneYAML := []byte(fmt.Sprintf(thinPvcCloneTemplateYAML, thinClonePVCName, "thinvol", pvcSize))
 		stdout, stderr, err = kubectlWithInput(thinPVCCloneYAML, "apply", "-n", nsCloneTest, "-f", "-")
@@ -87,6 +115,27 @@ func testPVCClone() {
 		poolName := "pool0"
 		Expect(poolName).Should(Equal(lv.poolName))
 
+		By("confirming that the file exists in the cloned volume")
+		Eventually(func() error {
+			stdout, stderr, err = kubectl("get", "pvc", thinClonePVCName, "-n", nsCloneTest)
+			if err != nil {
+				return fmt.Errorf("failed to create PVC. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+
+			stdout, stderr, err = kubectl("get", "pods", "thin-clone-pod", "-n", nsCloneTest)
+			if err != nil {
+				return fmt.Errorf("failed to create Pod. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+
+			stdout, stderr, err = kubectl("exec", "-n", nsCloneTest, "thin-clone-pod", "--", "cat", writePath)
+			if err != nil {
+				return fmt.Errorf("failed to cat. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+			if len(strings.TrimSpace(string(stdout))) == 0 {
+				return fmt.Errorf(writePath + " is empty")
+			}
+			return nil
+		}).Should(Succeed())
 		// 	return err
 		// }).Should(Succeed())
 
