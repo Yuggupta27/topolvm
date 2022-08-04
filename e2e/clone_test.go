@@ -152,8 +152,8 @@ func testPVCClone() {
 		// stdout, stderr, err = kubectlWithInput(thinPodYAML, "delete", "-n", nsCloneTest, "-f", "-")
 		// Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
-		// validate if the cloned volume is present and is not deleted.
-		By("validate if the cloned volume is present and is not deleted")
+		// validate if the cloned volume is present.
+		By("validate if the cloned volume is present")
 		Eventually(func() error {
 			volumeName, err = getVolumeNameofPVC(thinClonePVCName, nsCloneTest)
 			return err
@@ -174,6 +174,26 @@ func testPVCClone() {
 		poolName := "pool0"
 		Expect(poolName).Should(Equal(lv.poolName))
 
+		// delete the source PVC and application
+		By("deleting source volume and snapshot")
+		thinPodYAML = []byte(fmt.Sprintf(thinPodTemplateYAML, "thinpod", volName, nodeName))
+		stdout, stderr, err = kubectlWithInput(thinPodYAML, "delete", "-n", nsCloneTest, "-f", "-")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+
+		thinPvcYAML = []byte(fmt.Sprintf(thinPVCTemplateYAML, volName, pvcSize))
+		stdout, stderr, err = kubectlWithInput(thinPvcYAML, "delete", "-n", nsCloneTest, "-f", "-")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+
+		By("validate if the cloned volume is present and is not deleted")
+		Eventually(func() error {
+			volumeName, err = getVolumeNameofPVC(thinClonePVCName, nsCloneTest)
+			return err
+		}).Should(Succeed())
+
+		Eventually(func() error {
+			lv, err = getThinLVInfo(volumeName)
+			return err
+		}).Should(Succeed())
 	})
 
 }
