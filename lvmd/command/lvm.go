@@ -61,16 +61,32 @@ type VolumeGroup struct {
 func (g *VolumeGroup) Update() error {
 	vgs, lvs, err := getLVMState()
 	if err != nil {
+		log.Error("YUG In update", map[string]interface{}{
+			log.FnError: err,
+			"name":      "",
+		})
 		return err
 	}
+	log.Error("YUG step 2", map[string]interface{}{
+		log.FnError: nil,
+		"name":      "",
+	})
 	for _, vg := range vgs {
 		if vg.name == g.Name() {
 			g.state = vg
 			break
 		}
 	}
+	log.Error("YUG step 3", map[string]interface{}{
+		log.FnError: nil,
+		"name":      "",
+	})
 
 	g.lvs = filter_lv(g.Name(), lvs)
+	log.Error("YUG step 4", map[string]interface{}{
+		log.FnError: nil,
+		"name":      "",
+	})
 	return nil
 }
 

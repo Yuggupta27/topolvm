@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/cybozu-go/log"
 )
 
 type vg struct {
@@ -142,6 +144,10 @@ func (u *lv) UnmarshalJSON(data []byte) error {
 }
 
 func parseLVMJSON(data []byte) (vgs []vg, lvs []lv, _ error) {
+	log.Error("YUG in parseLVMJSON", map[string]interface{}{
+		log.FnError: nil,
+		"name":      "",
+	})
 	type lvmResponse struct {
 		Report json.RawMessage `json:"report"`
 		Log    json.RawMessage `json:"log"`
@@ -155,12 +161,20 @@ func parseLVMJSON(data []byte) (vgs []vg, lvs []lv, _ error) {
 	var result lvmResponse
 
 	if parseErr := json.Unmarshal(data, &result); parseErr != nil {
+		log.Error("YUG step i", map[string]interface{}{
+			log.FnError: parseErr,
+			"name":      "",
+		})
 		return nil, nil, parseErr
 	}
 
 	if result.Report != nil {
 		var entries []lvmEntries
 		if parseErr := json.Unmarshal(result.Report, &entries); parseErr != nil {
+			log.Error("YUG step jk", map[string]interface{}{
+				log.FnError: parseErr,
+				"name":      "",
+			})
 			return nil, nil, parseErr
 		}
 
@@ -168,6 +182,10 @@ func parseLVMJSON(data []byte) (vgs []vg, lvs []lv, _ error) {
 			if e.Vg != nil {
 				var tvgs []vg
 				if parseErr := json.Unmarshal(e.Vg, &tvgs); parseErr != nil {
+					log.Error("YUG step dsdsd", map[string]interface{}{
+						log.FnError: parseErr,
+						"name":      "",
+					})
 					return nil, nil, parseErr
 				}
 				vgs = append(vgs, tvgs...)
@@ -175,12 +193,20 @@ func parseLVMJSON(data []byte) (vgs []vg, lvs []lv, _ error) {
 			if e.Lv != nil {
 				var tlvs []lv
 				if parseErr := json.Unmarshal(e.Lv, &tlvs); parseErr != nil {
+					log.Error("YUG step sdsdsdsd", map[string]interface{}{
+						log.FnError: parseErr,
+						"name":      "",
+					})
 					return nil, nil, parseErr
 				}
 				lvs = append(lvs, tlvs...)
 			}
 		}
 	}
+	log.Error("YUG done with parseLVMJSON", map[string]interface{}{
+		log.FnError: nil,
+		"name":      "",
+	})
 	return vgs, lvs, nil
 }
 
@@ -200,23 +226,45 @@ func getLVMState() (vgs []vg, lvs []lv, _ error) {
 			"lv_kernel_major,lv_kernel_minor,origin,origin_size,pool_lv,lv_tags," +
 			"lv_attr,vg_name,data_percent,metadata_percent,pool_lv",
 	}
-
+	log.Error("YUG step a", map[string]interface{}{
+		log.FnError: nil,
+		"name":      "",
+	})
 	c := wrapExecCommand(lvm, args...)
 	c.Stderr = os.Stderr
 	stdout, err := c.StdoutPipe()
 	if err != nil {
+		log.Error("YUG step b", map[string]interface{}{
+			log.FnError: err,
+			"name":      "",
+		})
 		return vgs, lvs, err
 	}
 	if err := c.Start(); err != nil {
+		log.Error("YUG step c", map[string]interface{}{
+			log.FnError: err,
+			"name":      "",
+		})
 		return nil, nil, err
 	}
 	out, err := io.ReadAll(stdout)
 	if err != nil {
+		log.Error("YUG step d", map[string]interface{}{
+			log.FnError: err,
+			"name":      "",
+		})
 		return nil, nil, err
 	}
 	if err := c.Wait(); err != nil {
+		log.Error("YUG step e", map[string]interface{}{
+			log.FnError: err,
+			"name":      "",
+		})
 		return nil, nil, err
 	}
-
+	log.Error("YUG step f", map[string]interface{}{
+		log.FnError: err,
+		"name":      "",
+	})
 	return parseLVMJSON(out)
 }
