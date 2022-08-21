@@ -149,11 +149,20 @@ func ListVolumeGroups() ([]*VolumeGroup, error) {
 
 // FindVolume finds a named logical volume in this volume group.
 func (g *VolumeGroup) FindVolume(name string) (*LogicalVolume, error) {
+
 	for _, volume := range g.ListVolumes() {
 		if volume.Name() == name {
+			log.Error("YUG In FindVOlume, volume found", map[string]interface{}{
+				log.FnError: nil,
+				"name":      name,
+			})
 			return volume, nil
 		}
 	}
+	log.Error("YUG In FindVOlume, volume NOT found", map[string]interface{}{
+		log.FnError: nil,
+		"name":      name,
+	})
 	return nil, ErrNotFound
 }
 
@@ -483,6 +492,10 @@ func (l *LogicalVolume) Tags() []string {
 // only for non-snapshot volumes.
 func (l *LogicalVolume) Snapshot(name string, cowSize uint64, tags []string) (*LogicalVolume, error) {
 	if l.pool == nil {
+		log.Error("YUG in THICK snap", map[string]interface{}{
+			log.FnError: nil,
+			"name":      name,
+		})
 		if l.IsSnapshot() {
 			return nil, fmt.Errorf("snapshot of snapshot")
 		}
@@ -525,18 +538,38 @@ func (l *LogicalVolume) Snapshot(name string, cowSize uint64, tags []string) (*L
 	var lvcreateArgs []string
 
 	if _, err := os.Stat("/run/systemd/system"); err != nil {
+		log.Error("YUG here 1", map[string]interface{}{
+			log.FnError: nil,
+			"name":      name,
+		})
 		lvcreateArgs = []string{"-s", "-n", name, l.fullname}
 	} else {
+		log.Error("YUG here 2", map[string]interface{}{
+			log.FnError: nil,
+			"name":      name,
+		})
 		lvcreateArgs = []string{"-s", "-k", "n", "-n", name, l.fullname}
 	}
 	for _, tag := range tags {
 		lvcreateArgs = append(lvcreateArgs, "--addtag")
 		lvcreateArgs = append(lvcreateArgs, tag)
+		log.Error("YUG appending done", map[string]interface{}{
+			log.FnError: nil,
+			"name":      name,
+		})
 	}
 	if err := CallLVM("lvcreate", lvcreateArgs...); err != nil {
+		log.Error("YUG lvcreate failed", map[string]interface{}{
+			log.FnError: err,
+			"name":      name,
+		})
 		return nil, err
 	}
 	if err := l.vg.Update(); err != nil {
+		log.Error("YUG vg update failed", map[string]interface{}{
+			log.FnError: err,
+			"name":      name,
+		})
 		return nil, err
 	}
 
