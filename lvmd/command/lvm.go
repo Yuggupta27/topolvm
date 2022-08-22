@@ -552,20 +552,24 @@ func (l *LogicalVolume) Snapshot(name string, cowSize uint64, tags []string) (*L
 	}
 
 	var lvcreateArgs []string
-
-	if _, err := os.Stat("/run/systemd/system"); err != nil {
-		log.Error("YUG here 1", map[string]interface{}{
-			log.FnError: nil,
-			"name":      name,
-		})
-		lvcreateArgs = []string{"-s", "-n", name, l.fullname}
-	} else {
-		log.Error("YUG here 2", map[string]interface{}{
-			log.FnError: nil,
-			"name":      name,
-		})
-		lvcreateArgs = []string{"-s", "-k", "n", "-n", name, l.fullname}
-	}
+	log.Error("YUG running the 2 command", map[string]interface{}{
+		log.FnError: nil,
+		"name":      name,
+	})
+	lvcreateArgs = []string{"-s", "-k", "n", "-n", name, l.fullname}
+	// if _, err := os.Stat("/run/systemd/system"); err != nil {
+	// 	// log.Error("YUG here 1", map[string]interface{}{
+	// 	// 	log.FnError: nil,
+	// 	// 	"name":      name,
+	// 	// })
+	// 	// lvcreateArgs = []string{"-s", "-n", name, l.fullname}
+	// } else {
+	// 	log.Error("YUG here 2", map[string]interface{}{
+	// 		log.FnError: nil,
+	// 		"name":      name,
+	// 	})
+	// 	lvcreateArgs = []string{"-s", "-k", "n", "-n", name, l.fullname}
+	// }
 	for _, tag := range tags {
 		lvcreateArgs = append(lvcreateArgs, "--addtag")
 		lvcreateArgs = append(lvcreateArgs, tag)
